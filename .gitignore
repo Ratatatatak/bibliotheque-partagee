@@ -5,3 +5,4 @@ dist/
 *.log
 dev.pid
 .vercel
+supabase/.temp/
