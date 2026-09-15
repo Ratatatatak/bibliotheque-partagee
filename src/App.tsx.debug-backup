@@ -1,0 +1,76 @@
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { supabase } from './integrations/supabase/client';
+import { Toaster } from './components/ui/toaster';
+import { TooltipProvider } from './components/ui/tooltip';
+import { AuthProvider } from './hooks/useAuth';
+import { useAuth } from './hooks/useAuth';
+import { ScrollToTop } from './components/ScrollToTop';
+import { Index } from './pages/Index';
+import { Games } from './pages/Games';
+import { MyCollection } from './pages/MyCollection';
+import { MyLoans } from './pages/MyLoans';
+import { Profile } from './pages/Profile';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
+import { NotFound } from './pages/NotFound';
+import { Admin } from './pages/Admin';
+import { Header } from './components/Header';
+import { Sessions } from './pages/Sessions';
+import { Members } from './pages/Members';
+
+// DEBUG: Log env vars at startup
+console.log('=== ENV VARS DEBUG ===');
+console.log('VITE_LOCAL_DEMO_MODE:', import.meta.env.VITE_LOCAL_DEMO_MODE);
+console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
+console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY);
+console.log('LOCAL_DEMO_MODE (calculated):', import.meta.env.VITE_LOCAL_DEMO_MODE !== 'false');
+console.log('isSupabaseConfigured:', Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY));
+console.log('======================');
+
+const queryClient = new QueryClient();
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/login" element={<Navigate to="/games" replace />} />
+              <Route path="/register" element={<Navigate to="/games" replace />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/games" element={<><Header /><Games /></>} />
+              <Route path="/sessions" element={<><Header /><Sessions /></>} />
+              <Route path="/members" element={<><Header /><Members /></>} />
+              <Route
+                element={<ProtectedRoute />}
+              >
+                <Route path="my-collection" element={<MyCollection />} />
+                <Route path="my-loans" element={<MyLoans />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="admin" element={<Admin />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+}
+
+// Simple protected route component
+function ProtectedRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Chargement...</div>;
+  }
+
+  return <><Header /><Outlet /></>;
+}
+
+export default App;

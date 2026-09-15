@@ -1,0 +1,292 @@
+import { createClient } from '@supabase/supabase-js'
+import fs from 'fs'
+import path from 'path'
+
+const envPath = path.resolve('.env.local')
+const envVars = {}
+if (fs.existsSync(envPath)) {
+  const lines = fs.readFileSync(envPath, 'utf8').split('\n')
+  for (const line of lines) {
+    const match = line.match(/^([^=]+)=(.*)$/)
+    if (match) {
+      const [, key, value] = match
+      envVars[key.trim()] = value.trim()
+    }
+  }
+}
+
+const supabaseUrl = envVars.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+const supabaseAnonKey = envVars.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing env vars')
+  console.log('Expected VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local or environment')
+  process.exit(1)
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Function to parse the games txt file
+function parseGamesFromTxt(filePath) {
+  const content = fs.readFileSync(filePath, 'utf8')
+
+  // Split by separator lines
+  const sections = content.split(/--------------------------------------------------------------------/)
+
+  const games = []
+  let debugCount = 0;
+
+  for (const section of sections) {
+    const trimmed = section.trim()
+    if (!trimmed || trimmed.startsWith('Liste des') || trimmed.startsWith('Format :') ||
+        trimmed.startsWith('Fin du fichier') || trimmed.startsWith('(continuer')) {
+      continue
+    }
+
+    const lines = trimmed.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+
+    if (lines.length < 8) continue // Need at least the basic lines
+
+    try {
+      // Parse first line: "#. Titre (année)"
+      const firstLine = lines[0]
+      const titleMatch = firstLine.match(/^\d+\.\s+(.+?)\s+\((\d{4})\)$/)
+      if (!titleMatch) {
+        console.warn(`Could not parse title line: ${firstLine}`)
+        continue
+      }
+      const [, title, yearStr] = titleMatch
+      const year = parseInt(yearStr, 10)
+
+      // Initialize fields
+      let designers = ''
+      let editor = ''
+      let playersStr = ''
+      let ageStr = ''
+      let durationStr = ''
+      let mechanics = ''
+      let objective = ''
+      let source = ''
+
+      // Debug first section
+      if (debugCount === 0) {
+        console.log('DEBUG Raw strings:');
+        console.log('  playersStr:', JSON.stringify(playersStr));
+        console.log('  ageStr:', JSON.stringify(ageStr));
+        console.log('  durationStr:', JSON.stringify(durationStr));
+        console.log('DEBUG All lines:');
+        lines.forEach((line, index) => {
+          console.log(`  [${index}]: ${JSON.stringify(line)}`);
+        });
+        debugCount++;
+      }
+
+      // Parse subsequent lines
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i]
+        if (line.startsWith('Concepteur(s) :')) {
+          designers = line.substring('Concepteur(s) :'.length).trim()
+        } else if (line.startsWith('Éditeur :')) {
+          editor = line.substring('Éditeur :'.length).trim()
+        } else if (line.startsWith('Joueurs :')) {
+          playersStr = line.substring('Joueurs :'.length).trim()
+        } else if (line.startsWith('Âge :')) {
+          ageStr = line.substring('Âge :'.length).trim()
+        } else if (line.startsWith('Durée :')) {
+          durationStr = line.substring('Durée :'.length).trim()
+        } else if (line.startsWith('Mécaniques principales :')) {
+          mechanics = line.substring('Mécaniques principales :'.length).trim()
+        } else if (line.startsWith('Objectif :')) {
+          objective = line.substring('Objectif :'.length).trim()
+        } else if (line.startsWith('Source vérifiable :')) {
+          source = line.substring('Source vérifiable :'.length).trim()
+        }
+      }
+
+      // Parse players: extract all numbers
+      let min_players = 1
+      let max_players = 1
+      const playerNumbers = playersStr.match(/\d+/g)
+      if (playerNumbers) {
+        const numbers = playerNumbers.map(n => parseInt(n, 10))
+        if (numbers.length >= 1) {
+          min_players = numbers[0]
+          max_players = numbers.length >= 2 ? numbers[1] : numbers[0]
+          // Handle case like "2‑4 (extensible à 6 avec extension)" - we might want to ignore the extension number
+          // For now, we'll take the first two numbers
+          if (numbers.length >= 3) {
+            // Check if there's text indicating extension
+            if (playersStr.includes('extensible') || playersStr.includes('extension')) {
+              // Keep the first two numbers as base players
+            } else {
+              // If no extension indication, maybe use all numbers?
+              // For safety, stick with first two
+            }
+          }
+        }
+      }
+
+      // Parse age: extract first number
+      let min_age = 0
+      const ageNumbers = ageStr.match(/\d+/g)
+      if (ageNumbers && ageNumbers.length > 0) {
+        min_age = parseInt(ageNumbers[0], 10)
+      }
+
+      // Parse duration: extract numbers and compute average if multiple
+      let duration = 0
+      const durationNumbers = durationStr.match(/\d+/g)
+      if (durationNumbers) {
+        const numbers = durationNumbers.map(n => parseInt(n, 10))
+        if (numbers.length === 1) {
+          duration = numbers[0]
+        } else if (numbers.length >= 2) {
+          // Take average of first two numbers
+          duration = Math.round((numbers[0] + numbers[1]) / 2)
+          // Handle cases like "~45 min par scénario" - we already extracted numbers
+          // For legacy scenarios, we might want to keep as is
+        }
+      }
+
+      // Generate ID from title: convert to kebab-case, remove special characters
+      let id = title.toLowerCase()
+        .replace(/[^\w\s-]/g, '') // Remove special chars
+        .replace(/\s+/g, '-')     // Replace spaces with hyphens
+        .replace(/--+/g, '-')     // Replace multiple hyphens with single
+        .replace(/^-+|-+$/g, '')  // Remove leading/trailing hyphens
+
+      // Truncate ID if too long (though unlikely)
+      if (id.length > 50) {
+        id = id.substring(0, 50)
+      }
+
+      // Determine description: combine objective and mechanics
+      let description = objective
+      if (mechanics && description) {
+        description += ` ${mechanics}`
+      } else if (mechanics && !description) {
+        description = mechanics
+      }
+
+      // Limit description length if needed (optional)
+
+      // Determine category based on mechanics or leave empty for now
+      // For simplicity, we'll leave it empty or try to infer from mechanics
+      let category = ''
+      if (mechanics) {
+        const lowerMechanics = mechanics.toLowerCase()
+        if (lowerMechanics.includes('stratégie') || lowerMechanics.includes('strategy')) {
+          category = 'Stratégie'
+        } else if (lowerMechanics.includes('famille') || lowerMechanics.includes('family')) {
+          category = 'Famille'
+        } else if (lowerMechanics.includes('ambiance') || lowerMechanics.includes('party') || lowerMechanics.includes('ambiance')) {
+          category = 'Ambiance'
+        } else if (lowerMechanics.includes('réflexion') || lowerMechanics.includes('reflection')) {
+          category = 'Réflexion'
+        } else if (lowerMechanics.includes('coopératif') || lowerMechanics.includes('cooperative') || lowerMechanics.includes('coopération')) {
+          category = 'Coopératif'
+        } else if (lowerMechanics.includes('cartes') || lowerMechanics.includes('card')) {
+          category = 'Cartes'
+        } else if (lowerMechanics.includes('aventure') || lowerMechanics.includes('adventure')) {
+          category = 'Aventure'
+        } else if (lowerMechanics.includes('enquête') || lowerMechanics.includes('investigation')) {
+          category = 'Enquête'
+        } else {
+          // Default to first word or empty
+          category = ''
+        }
+      }
+
+      // Image URL: not available in txt file, set to null
+      const image_url = null
+
+      // Source URL: extract if it's a URL
+      let source_url = null
+      let source_name = null
+      if (source && (source.startsWith('http') || source.startsWith('www'))) {
+        source_url = source
+        // Try to extract source name from URL
+        try {
+          const urlObj = new URL(source.startsWith('http') ? source : `http://${source}`)
+          source_name = urlObj.hostname.replace('www.', '')
+        } catch (e) {
+          source_name = source.substring(0, 50) // Fallback
+        }
+      } else if (source && source !== 'À compléter avec source vérifiable') {
+        source_name = source.substring(0, 100) // Limit length
+      }
+
+      games.push({
+        id,
+        name: title,
+        description: description || 'Description non disponible',
+        image_url,
+        min_players,
+        max_players,
+        duration: duration || 0, // Default to 0 if parsing failed
+        min_age,
+        category: category || 'Autre', // Default category
+        // Note: year, source_url, source_name are not in the Supabase games table
+        // They would need to be added to the table schema if desired
+      })
+
+    } catch (error) {
+      console.warn(`Error parsing section:`, section.substring(0, 100), error)
+      continue
+    }
+  }
+
+  return games
+}
+
+async function insertGames() {
+  const txtFilePath = path.join('..', '..', 'vs code', 'scrapping boardgamegeek', 'fiches_jeux', 'jeux_100.txt')
+
+  console.log('Reading games from:', txtFilePath)
+
+  if (!fs.existsSync(txtFilePath)) {
+    console.error('File not found:', txtFilePath)
+    // Try alternative path
+    const altPath = path.join('c:', 'Users', 'pigag', 'Documents', 'vs code', 'scrapping boardgamegeek', 'fiches_jeux', 'jeux_100.txt')
+    if (fs.existsSync(altPath)) {
+      console.log('Using alternative path:', altPath)
+      // Continue with altPath
+    } else {
+      console.error('Alternative path also not found:', altPath)
+      process.exit(1)
+    }
+  }
+
+  const games = parseGamesFromTxt(txtFilePath)
+
+  console.log(`Parsed ${games.length} games from txt file`)
+
+  // Show first few games as preview
+  console.log('\nFirst 3 games parsed:')
+  games.slice(0, 3).forEach((game, index) => {
+    console.log(`${index + 1}: ${game.name} (ID: ${game.id})`)
+    console.log(`   Players: ${game.min_players}-${game.max_players}, Age: ${game.min_age}+, Duration: ${game.duration}min`)
+    console.log(`   Category: ${game.category}`)
+    console.log(`   Description: ${game.description.substring(0, 100)}...`)
+  })
+
+  console.log('\nInserting games into Supabase...')
+
+  const { data, error, count } = await supabase
+    .from('games')
+    .upsert(games, { onConflict: ['id'] })
+    .select()
+
+  if (error) {
+    console.error('Error inserting games:', error)
+    return
+  }
+
+  console.log(`Successfully inserted/updated ${data.length} games:`)
+  data.forEach(game => {
+    console.log(`- ${game.name}`)
+  })
+}
+
+// Run the insertion
+insertGames().catch(console.error)

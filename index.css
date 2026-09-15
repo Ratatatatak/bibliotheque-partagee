@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import des tokens et animations émotionnelles */
+@import "./styles/tokens.css";
+@import "./styles/animations.css";
+
+/* Reset et base émotionnelle */
+* {
+  @media (prefers-reduced-motion: no-preference) {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Base émotionnelle - Fond qui accueille avec texture papier subtile */
+body {
+  @apply bg-creme-de-lait text-brun-cafe-doux antialiased;
+  /* Texture papier subtile en fond */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 29px,
+      #e2e8d0 30px
+    );
+}
+
+/* Titres avec personnalité émotionnelle */
+h1, h2, h3, h4, h5, h6 {
+  @apply font-display;
+  /* Ligne de base subtile pour les titres évoquant le papier de qualité */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 29px,
+      #e2e8d0 30px
+    );
+  background-size: 100% 30px;
+  background-repeat: repeat-x;
+  background-position: bottom;
+  padding-bottom: 2px;
+}
+
+/* Styles de focus émotionnels - Présence qui se voit avec douceur */
+:focus-visible {
+  @apply outline-none;
+  @apply ring-2 ring-terre-cuite-chaleureuse/20 ring-offset-2;
+  @apply border-terre-cuite-chaleureuse/30;
+  @apply bg-terre-cuite-chaleureuse/5;
+}
+
+/* Transition globale émotionnelle - Réponses qui viennent naturellement avec chaleur */
+* {
+  @apply transition-colors duration-200 ease-out-doux;
+  @apply transition-transform duration-200 ease-out-doux;
+  @apply transition-shadow duration-200 ease-out-doux;
+}
+
+/* Animation de'apparition douce émotionnelle */
+@keyframes apparition-douce {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.apparition-douce {
+  animation: apparition-douce 400ms ease-out-doux forwards;
+}
+
+/* Animation de pulsation douce pour les éléments d'attention bienveillante */
+@keyframes pulsation-douce {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.pulsation-douce {
+  animation: pulsation-douce 3s ease-in-out infinite;
+}
+
+/* Animation de flottement ludique pour les éléments qui invitent à la découverte */
+@keyframes flottement-ludique {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.flottement-ludique {
+  animation: flottement-ludique 6s ease-in-out infinite;
+}
+
+/* Animation de tilt ludique pour la manipulation subtile */
+@keyframes tilt-ludique {
+  0%, 100% {
+    transform: rotate(0deg) rotateX(0deg);
+  }
+  50% {
+    transform: rotate(2deg) rotateX(1deg);
+  }
+}
+
+.tilt-ludique {
+  animation: tilt-ludique 4s ease-in-out infinite;
+}
+
+/* Style pour les éléments qui doivent avoir une texture papier subtile */
+.texture-papier-leger {
+  background-image:
+    "data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23e2e8d0' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E";
+  background-repeat: repeat;
+  background-size: 60px 60px;
+}
+
+/* Conteneurs avec bordure émotionnelle */
+.container-emotionnel {
+  @apply bg-creme-de-lait rounded-xl shadow-md border border-gris-pierre-chaude;
+}
+
+.container-emotionnel:hover {
+  @apply shadow-jeu;
+}
+
+/* Textes avec hiérarchie émotionnelle */
+.text-emotionnel-title {
+  @apply font-display text-2xl text-brun-cafe-doux;
+}
+
+.text-emotionnel-subtitle {
+  @apply font-serif text-lg text-brun-cafe-doux/80;
+}
+
+.text-emotionnel-body {
+  @apply font-sans text-base text-brun-cafe-doux/90;
+}
+
+.text-emotionnel-caption {
+  @apply font-sans text-sm text-brun-cafe-doux/60;
+}
+
+/* Styles pour les états de chargement émotionnels */
+.chargement-emotionnel {
+  @apply flex items-center space-x-3;
+}
+
+.chargement-emotionnel .point {
+  @apply h-2 w-2 bg-terre-cuite-chaleureuse rounded-full animate-[pulsation_douce_2s_ease-in-out_infinite];
+}
+
+.chargement-emotionnel .point:nth-child(2) {
+  @apply animate-[pulsation_douce_2s_ease-in-out_infinite_150ms];
+}
+
+.chargement-emotionnel .point:nth-child(3) {
+  @apply animate-[pulsation_douce_2s_ease-in-out_infinite_300ms];
+}
+
+/* Styles pour les états vides émotionnels */
+.vide-emotionnel {
+  @apply text-center py-12;
+}
+
+.vide-emotionnel .icon-emotionnel {
+  @apply h-12 w-12 bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse rounded-xl flex items-center justify-center mb-4;
+}
+
+.vide-emotionnel .titre-emotionnel {
+  @apply text-xl font-bold text-brun-cafe-doux mb-2;
+}
+
+.vide-emotionnel .description-emotionnelle {
+  @apply text-lg text-brun-cafe-doux/60 max-w-xl mx-auto;
+}
+
+/* Styles pour les séparateurs émotionnels */
+.separateur-emotionnel {
+  @apply h-0.5 bg-gris-pierre-chaude/50 my-6;
+}
+
+/* Styles pour les listes émotionnelles */
+.liste-emotionnelle {
+  @apply space-y-4;
+}
+
+.liste-emotionnelle > * {
+  @apply apparition-douce;
+}
+
+/* Styles pour les badges émotionnels */
+.badge-emotionnel {
+  @apply rounded-full px-3 py-1 text-xs font-medium;
+}
+
+.badge-emotionnel-primary {
+  @apply bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse;
+}
+
+.badge-emotionnel-secondary {
+  @apply bg-bleu-canard-profond/10 text-bleu-canard-profond;
+}
+
+.badge-emotionnel-success {
+  @apply bg-vert-sauge-doux/10 text-vert-sauge-doux;
+}
+
+.badge-emotionnel-outline {
+  @apply border border-terre-cuite-chaleureuse/30 text-terre-cuite-chaleureuse hover:bg-terre-cuite-chaleureuse/5;
+}

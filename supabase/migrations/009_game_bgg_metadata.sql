@@ -1,0 +1,3 @@
+ALTER TABLE public.games
+  ADD COLUMN IF NOT EXISTS average_rating NUMERIC(4, 2),
+  ADD COLUMN IF NOT EXISTS ratings_count INTEGER;

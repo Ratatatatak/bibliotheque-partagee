@@ -1,0 +1,110 @@
+import { Header } from "@/components/Header";
+import { Hero } from "@/components/Hero";
+import { SEO } from "@/components/SEO";
+import { gameCatalog } from "@/data/gameCatalog";
+import { readLocalFavorites, readLocalSessions } from "@/lib/localWorkspace";
+import { Link } from "react-router-dom";
+import { ArrowUpRight, Boxes, CalendarDays, Heart, Users } from "lucide-react";
+
+const Index = () => {
+  return (
+    <div className="min-h-screen bg-creme-de-lait">
+      <SEO
+        title="Ludothèque du groupe"
+        description="La ludothèque privée de notre groupe d'amis. Retrouvez les jeux disponibles et gérez vos collections."
+        path="/"
+      />
+      <Header />
+      <main>
+        <Hero />
+        <section className="border-t border-gris-pierre-chaude/40 bg-creme-de-lait/90 px-4 py-16 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { icon: Boxes, value: gameCatalog.length, label: 'jeux référencés' },
+                { icon: Users, value: 3, label: 'membres du groupe' },
+                { icon: Heart, value: readLocalFavorites().length, label: 'jeux favoris' },
+              ].map(({ icon: Icon, value, label, index }) => {
+                const bgColor = index === 0 ? 'bg-terre-cuite-chaleureuse/20' :
+                               index === 1 ? 'bg-bleu-canard-profond/20' :
+                               'bg-vert-sauge-doux/20';
+                const textColor = index === 0 ? 'text-terre-cuite-chaleureuse' :
+                                 index === 1 ? 'text-bleu-canard-profond' :
+                                 'text-vert-sauge-doux';
+
+                return (
+                  <div key={label} className="flex items-center gap-4 rounded-xl border border-gris-pierre-chaude bg-creme-de-lait px-5 py-6 shadow-sm hover:shadow-md transition-all duration-300 ease-out-doux">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${bgColor} ${textColor} shadow-sm`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <p className="font-serif text-2xl font-bold text-brun-cafe-doux">{value}</p>
+                      <p className="text-xs font-bold uppercase tracking-wider text-brun-cafe-doux/60">{label}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-12 flex flex-col gap-6 border-b border-gris-pierre-chaude/40 pb-6 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-vert-sauge-doux">Catalogue récent</p>
+                <h2 className="mt-2 text-3xl font-bold text-brun-cafe-doux tracking-tight">Les dernières boîtes ajoutées</h2>
+              </div>
+              <Link to="/games" className="inline-flex items-center gap-3 text-sm font-semibold text-terre-cuite-chaleureuse hover:text-terre-cuite-chaleureuse/90 hover:bg-terre-cuite-chaleureuse/5">
+                Voir la ludothèque <ArrowUpRight className="h-4 w-4 ml-2" />
+              </Link>
+            </div>
+            <div className="mt-8 grid gap-6 md:grid-cols-3">
+              {gameCatalog.slice(-3).map((game, index) => (
+                <Link
+                  key={game.id}
+                  to={`/games?search=${encodeURIComponent(game.name)}`}
+                  className="group relative overflow-hidden rounded-xl border border-gris-pierre-chaude bg-creme-de-lait p-6 shadow-sm transition-all duration-300 ease-out-doux hover:-translate-y-2 hover:shadow-jeu"
+                >
+                  <span className="absolute right-4 top-4 font-serif text-3xl font-bold text-gris-perle/50">0{index + 1}</span>
+                  <p className="pr-12 text-xl font-bold text-brun-cafe-doux transition-colors duration-300 ease-out-doux group-hover:text-terre-cuite-chaleureuse">
+                    {game.name}
+                  </p>
+                  <div className="mt-6 grid gap-4 text-sm font-semibold text-brun-cafe-doux/70">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse font-medium px-2 py-0.5 rounded-full">
+                        📅
+                      </span>
+                      <span>{game.year}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse font-medium px-2 py-0.5 rounded-full">
+                        👥
+                      </span>
+                      <span>{game.min_players}-{game.max_players} joueurs</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse font-medium px-2 py-0.5 rounded-full">
+                        ⏱️
+                      </span>
+                      <span>{game.duration} min</span>
+                    </div>
+                  </div>
+                  <ArrowUpRight
+                    className="absolute bottom-4 right-4 h-4 w-4 text-brun-cafe-doux/60 transition-colors duration-300 ease-out-doux group-hover:text-terre-cuite-chaleureuse"
+                  />
+                </Link>
+              ))}
+            </div>
+            {readLocalSessions().filter(session => session.status === 'planned').length > 0 && (
+              <Link
+                to="/sessions"
+                className="mt-8 flex items-center gap-3 rounded-xl border border-vert-sauge-doux/30 bg-vert-sauge-doux/10 px-5 py-4 text-sm font-semibold text-vert-sauge-doux hover:bg-vert-sauge-doux/20"
+              >
+                <CalendarDays className="h-5 w-5 text-vert-sauge-doux" />
+                Une partie est prévue dans l’espace Parties.
+              </Link>
+            )}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+};
+
+export { Index };

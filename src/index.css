@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Fond principal - Papier vieilli chaleureux (inspiré du papier de jeu vieilli et du lin naturel) */
+  --background: 38 22% 92%; /* Papier lin vieilli - ton chaud et doux comme du papier de jeu premium vieilli */
+
+  /* Texte principal - Encre foncée sur papier (comme l'encre d'imprimerie traditionnelle) */
+  --foreground: 20 15% 20%; /* Brun chaud profond, presque noir - excellente lisibilité */
+
+  /* Cartes de jeux - Bois de chêne clair (comme les plateaux de jeu en bois) */
+  --card: 34 22% 90%; /* Chêne clair avec léger grain - ton chaleureux et accueillant */
+  --card-foreground: 20 15% 20%; /* Même que foreground pour lisibilité optimale */
+
+  /* Popover/Modals - Carton vieilli (comme les extensions de boîte de jeu) */
+  --popover: 36 20% 88%; /* Carton légèrement plus foncé avec texture subtile */
+  --popover-foreground: 20 15% 20%;
+
+  /* Couleur principale - Cire de scellé foncée (comme les pions de jeu en bois teinté) */
+  --primary: 20 50% 30%; /* Brun rouille profond, élégant - rappel des pions en bois teinté */
+  --primary-foreground: 36 25% 94%; /* Texte clair sur fond principal */
+
+  /* Secondaire - Ruban de lin naturel (comme les cartes ou éléments en tissu de jeu) */
+  --secondary: 36 18% 84%; /* Lin naturel très doux - comme les cartes de jeu en lin */
+  --secondary-foreground: 20 15% 20%;
+
+  /* Atténué - Ombre douce du bois (comme les ombres subtiles sur les plateaux de jeu) */
+  --muted: 32 15% 82%; /* Bois très pâle en arrière-plan - pour texte secondaire et bordures */
+  --muted-foreground: 20 10% 40%; /* Gris-brun moyen pour texte secondaire sur fond muted */
+
+  /* Accent - Touche de cire de scellé dorée (comme les accents métalliques ou en cire sur les jeux) */
+  --accent: 38 50% 45%; /* Brun cuivre doré, riche mais pas saturé - comme la cire de scellé ancienne */
+  --accent-foreground: 36 25% 94%; /* Clair sur l'accent pour excellente contraste */
+
+  /* Destructif - Rouge terreux (pas criard, comme l'oxydation naturelle du métal) */
+  --destructive: 8 50% 35%; /* Rouge brique profond - évoque l'usure naturelle plutôt que l'erreur criarde */
+  --destructive-foreground: 36 25% 94%;
+
+  /* Bordures - Légère texture de papier (comme les bords légèrement usés des cartes de jeu) */
+  --border: 32 15% 82%; /* Papier légèrement texturé - cohérent avec muted pour harmonie */
+  --input: 32 15% 78%; /* Champ de saisie similaire - fond légèrement chaud */
+  --ring: 38 50% 45%; /* Même que l'accent pour les focus - indication claire et chaleureuse */
+
+  /* Rayon - Douceur des coins arrondis (comme les coins légèrement arrondis des jetons de jeu) */
+  --radius: 0.5rem;
+
+  /* Typographie - inspirée des jeux de société classiques */
+  --font-body: 'Lato', 'Open Sans', 'Nunito', 'Helvetica Neue', 'Arial', sans-serif;
+  --font-display: 'Cinzel', 'Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', serif;
+}
+
+.dark {
+  /* Fond sombre - Bois de wengé profond (comme les plateaux de jeu en bois foncé) */
+  --background: 20 12% 8%; /* Bois très foncé, presque noir - comme le wengé ou l'ébène */
+
+  /* Texte clair - Ivoire sur bois foncé (comme l'incrustation d'ivoire sur bois sombre) */
+  --foreground: 40 12% 92%; /* Ivoire très doux - excellente lisibilité sur fond sombre */
+
+  /* Cartes - Bois de noyer moyen (comme les plateaux de jeu en noyer) */
+  --card: 20 10% 12%; /* Bois légèrement plus clair - ton naturel du bois */
+  --card-foreground: 40 12% 92%;
+
+  /* Popover - Bois de palissandre (comme les éléments en bois exotique de certains jeux) */
+  --popover: 20 8% 10%; /* Très léger dégradé - suggère la profondeur du bois */
+  --popover-foreground: 40 12% 92%;
+
+  /* Primaire - Cuir brun chaud (comme le cuir utilisé dans certains accessoires de jeu) */
+  --primary: 22 40% 35%; /* Brun cuir chaleureux - rappelle les démarreurs en cuir de jeu */
+  --primary-foreground: 40 12% 92%;
+
+  /* Secondaire - Bois de teck vieilli (comme les accents en teck sur certains plateaux) */
+  --secondary: 20 8% 18%; /* Bois moyen foncé - comme le teck vieilli */
+  --secondary-foreground: 40 12% 92%;
+
+  /* Atténué - Texture du bois sombre (comme les veines subtiles du bois foncé) */
+  --muted: 20 6% 15%; /* Bois très sombre - pour arrière-plans subtils */
+  --muted-foreground: 40 6% 70%; /* Gris-bleu doux - lisibilité sur fond très sombre */
+
+  /* Accent - Bouchon de liège poli (comme les éléments en liège de certains jeux modernes) */
+  --accent: 25 30% 45%; /* Brun rougeâtre doux - suggère le liège poli ou le bois foncé */
+  --accent-foreground: 40 12% 92%; /* Clair sur l'accent pour excellente contraste */
+
+  /* Destructif - Rouge de braise (comme les braises dans un foyer de jeu traditionnel) */
+  --destructive: 5 50% 30%; /* Rouge profond et sombre - évoque la chaleur naturelle plutôt que le danger */
+  --destructive-foreground: 40 12% 92%;
+
+  /* Bordures - Grain du bois visible (comme le grain naturel visible sur le bois sombre) */
+  --border: 20 6% 18%; /* Très léger contraste - suggère le grain plutôt qu'une ligne dure */
+  --input: 20 6% 16%;
+  --ring: 25 30% 45%; /* Même que l'accent pour les focus dans le thème sombre */
+
+  /* Rayon identique */
+  --radius: 0.5rem;
+
+  /* Typographie - garde les mêmes valeurs */
+  --font-body: 'Lato', 'Open Sans', 'Nunito', 'Helvetica Neue', 'Arial', sans-serif;
+  --font-display: 'Cinzel', 'Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', serif;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   MOUVEMENTS SUBTILS - Inspirés des interactions tactiles des jeux de société
+   ========================================================================== */
+
+/* Transition de base pour interactions fluides et professionnelles */
+.btn-interactive,
+.card-interactive,
+.link-interactive,
+input,
+select,
+textarea,
+[role="button"] {
+  transition: transform 120ms cubic-bezier(0.4, 0, 0.2, 1) 0s,
+              box-shadow 120ms cubic-bezier(0.4, 0, 0.2, 1) 0s,
+              border-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0s,
+              background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0s,
+              color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0s;
+}
+
+/* Effet de survol des boutons - comme pousser doucement un pion en bois */
+.btn-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08),
+              0 2px 4px -2px rgb(0 0 0 / 0.05);
+}
+
+.btn-interactive:active {
+  transform: translateY(0);
+}
+
+/* Effet de survol des cartes de jeu - comme soulever légèrement une tuile en bois */
+.card-interactive:hover,
+.game-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px -2px rgb(0 0 0 / 0.09),
+              0 4px 6px -2px rgb(0 0 0 / 0.07);
+  border-color: hsl(var(--accent) / 0.15);
+}
+
+/* Effet de focus pour l'accessibilité - anneau chaud et visible */
+.btn-interactive:focus-visible,
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.5);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.1);
+}
+
+/* Effet de survol des liens textuels - soulignement chaleureux progressivement révélé */
+.link-interactive:hover,
+a.link-interactive:hover {
+  color: hsl(var(--foreground));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--accent) / 0.3);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 200ms ease-in-out,
+              text-decoration-thickness 200ms ease-in-out;
+}
+
+/* Animation douce d'apparition des éléments - comme révéler une carte posée sur la table */
+.animate-fade-in {
+  animation: fade-in 300ms ease-out forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Effet de pulsation très subtil pour les éléments actifs - comme un léger battement de cœur */
+.pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.01);
+  }
+}
+
+/* Animation existante - montée douce */
+.animate-rise-in {
+  animation: rise-in 600ms ease-out both;
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+::selection {
+  background: hsl(var(--accent) / 0.25);
+  color: hsl(var(--foreground));
+}

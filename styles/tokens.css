@@ -1,0 +1,56 @@
+/* Design Tokens émotionnels - Bibliothèque Partagée */
+/* These are implemented via Tailwind configuration */
+
+/*
+:root {
+  --color-terre-cuite-chaleureuse: #E27D60;
+  --color-bleu-canard-profond: #2C5F6D;
+  --color-vert-sauge-doux: #8FBC8F;
+  --color-creme-de-lait: #F8F4E9;
+  --color-gris-pierre-chaude: #E2E8D0;
+  --color-brun-cafe-doux: #4A4A4A;
+  --color-gris-perle: #F0F0F0;
+
+  --color-success-clair: #A8D5BA;
+  --color-warning-doux: #D4A574;
+  --color-error-atténue: #E8B7B7;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --spacing-0-5: 1px;
+  --spacing-1: 2px;
+  --spacing-1-5: 3px;
+  --spacing-2: 4px;
+  --spacing-2-5: 5px;
+  --spacing-3: 6px;
+  --spacing-4: 8px;
+  --spacing-5: 10px;
+  --spacing-6: 12px;
+  --spacing-8: 16px;
+  --spacing-10: 20px;
+  --spacing-12: 24px;
+  --spacing-16: 32px;
+  --spacing-20: 40px;
+  --spacing-24: 48px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.09), 0 4px 6px -2px rgba(0,0,0,0.05);
+  --shadow-inner: inset 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-jeu: 0 8px 25px -5px rgba(226, 125, 96, 0.15);
+
+  --transition-duration-100: 100ms;
+  --transition-duration-150: 150ms;
+  --transition-duration-200: 200ms;
+  --transition-duration-300: 300ms;
+  --transition-duration-400: 400ms;
+  --transition-duration-500: 500ms;
+
+  --transition-timing-doux: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-timing-naturel: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-timing-ludique: cubic-bezier(0.4, 0, 0.6, 1);
+}
+*/

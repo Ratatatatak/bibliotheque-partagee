@@ -1,0 +1,216 @@
+/* Animations émotionnelles - Bibliothèque Partagée */
+
+/* Scale animation for hover effects émotionnels */
+@keyframes scale-up-emotionnel {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+
+.scale-up-emotionnel {
+  transition: transform 200ms ease-out-doux;
+}
+.scale-up-emotionnel:hover {
+  transform: scale(1.03);
+}
+
+/* Scale down for active states émotionnels */
+@keyframes scale-down-emotionnel {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.97);
+  }
+}
+
+.scale-down-emotionnel:active {
+  transform: scale(0.97);
+  transition: transform 100ms ease-in;
+}
+
+/* Floating animation for subtle mouvement émotionnel */
+@keyframes flottement-ludique {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.flottement-ludique {
+  animation: flottement-ludique 6s ease-in-out infinite;
+}
+
+/* Gentle pulse animation for attention émotionnelle */
+@keyframes pulsation-douce {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.pulsation-douce {
+  animation: pulsation-douce 3s ease-in-out infinite;
+}
+
+/* Shake animation for errors émotionnels (mais doux) */
+@keyframes secouement-emotionnel {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.secousse-emotionnelle {
+  animation: secouement-emotionnel 0.5s ease-in-out;
+}
+
+/* Tilt ludique for subtle manipulation émotionnelle */
+@keyframes tilt-ludique {
+  0%, 100% {
+    transform: rotate(0deg) rotateX(0deg);
+  }
+  50% {
+    transform: rotate(2deg) rotateX(1deg);
+  }
+}
+
+.tilt-ludique {
+  animation: tilt-ludique 4s ease-in-out infinite;
+}
+
+/* Apparition douce émotionnelle */
+@keyframes apparition-douce {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.apparition-douce {
+  animation: apparition-douce 400ms ease-out-doux forwards;
+}
+
+/* Apparition depuis la gauche émotionnelle */
+@keyframes apparition-de-la-gauche {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.apparition-de-la-gauche {
+  animation: apparition-de-la-gauche 400ms ease-out-doux forwards;
+}
+
+/* Apparition depuis la droite émotionnelle */
+@keyframes apparition-de-la-droite {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.apparition-de-la-droite {
+  animation: apparition-de-la-droite 400ms ease-out-doux forwards;
+}
+
+/* Défilement émotionnel pour les listes */
+@keydefilement-emotionnel-vertical {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.filement-emotionnel-vertical {
+  animation: defilement-emotionnel-vertical 300ms ease-out-doux forwards;
+}
+
+/* Expansion émotionnelle pour les panneaux */
+@keyframes expansion-emotionnelle {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.expansion-emotionnelle {
+  animation: expansion-emotionnelle 300ms ease-out-doux forwards;
+}
+
+/* Contraction émotionnelle pour les panneaux */
+@keyframes contraction-emotionnelle {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.contraction-emotionnelle {
+  animation: contraction-emotionnelle 300ms ease-in-doux forwards;
+}
+
+/* Rotation légère émotionnelle */
+@keyframes rotation-leggere-emotionnelle {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(2deg);
+  }
+}
+
+.rotation-leggere-emotionnelle {
+  animation: rotation-leggere-emotionnelle 2s ease-in-out infinite alternate;
+}
+
+/* Bounce doux émotionnel */
+@keyframes bounce-doux-emotionnel {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.bounce-doux-emotionnel {
+  animation: bounce-doux-emotionnel 2s ease-in-out infinite;
+}

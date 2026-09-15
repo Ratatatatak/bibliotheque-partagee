@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/pigag/Documents -type d -name \"*bibliotheque*\" -o -name \"*test site*\" 2>/dev/null | head -20)",
+      "Read(//c/Users/pigag/Documents/**)",
+      "Bash(cd \"/c/Users/pigag/Documents/test site/bibliotheque partagée\" && mkdir -p src/integrations/supabase)"
+    ]
+  }
+}
