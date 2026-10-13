@@ -167,10 +167,10 @@ const gameToRow = (input: GameInput, id: string) => ({
   publisher: input.publishers.length ? input.publishers.join(' · ') : null,
   designers: input.designers,
   illustrators: input.illustrators,
-  min_players: input.minPlayers ?? 1,
-  max_players: input.maxPlayers ?? input.minPlayers ?? 1,
+  min_players: input.minPlayers,
+  max_players: input.maxPlayers,
   duration: input.playingTime,
-  min_age: input.minAge ?? 0,
+  min_age: input.minAge,
   description: input.description,
   categories: input.categories,
   category: input.categories[0] ?? null,
@@ -231,6 +231,9 @@ export const supabaseRepository: LibraryRepository = {
     if (!existing) {
       let insert = await client.from('games').insert(gameToRow(input, id));
       if (insert.error && isMissingSchema(insert.error)) {
+        if (input.minPlayers === null || input.maxPlayers === null || input.minAge === null) {
+          throw new DomainError('Cette fiche a des informations manquantes que l’ancienne base ne sait pas enregistrer. Appliquez la migration 010_loan_integrity_and_privacy.sql.');
+        }
         const full = gameToRow(input, id) as Record<string, unknown>;
         insert = await client.from('games').insert(Object.fromEntries(Object.entries(full).filter(([key]) => LEGACY_GAME_COLUMNS.includes(key))));
       }

@@ -100,6 +100,12 @@ describe('inventaire et prêts', () => {
     brunoCopy = (await as<{ id: string }>(BRUNO, `INSERT INTO public.game_copies (game_id, owner_id) VALUES ('230802', $1) RETURNING id`, [BRUNO]))[0].id;
   });
 
+  it('une fiche peut laisser vides les informations inconnues', async () => {
+    await as(BRUNO, `INSERT INTO public.games (id, name, bgg_id) VALUES ('999', 'Jeu sans infos', '999')`);
+    const row = (await as(BRUNO, `SELECT min_players, max_players, min_age FROM public.games WHERE id = '999'`))[0];
+    expect(row).toEqual({ min_players: null, max_players: null, min_age: null });
+  });
+
   it('un même jeu peut avoir plusieurs propriétaires, mais pas deux fois le même', async () => {
     const owners = await as(CHLOE, `SELECT owner_id FROM public.game_copies WHERE game_id = '230802' ORDER BY owner_id`);
     expect(owners.map((o) => o.owner_id)).toEqual([ALICE, BRUNO]);

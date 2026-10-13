@@ -220,7 +220,7 @@ Quand l'utilisateur fait une demande liée à l'interface émotionnelle :
 ## 12. RÉFÉRENCES ET RESSOURCES ÉMOTIONNELLES
 
 Consulter régulièrement émotionnellement :
-- Le dossier `C:\Users\pigag\Documents\test site\bibliotheque partagée\rendu visuel\` contenant :
+- Le dossier `rendu visuel/` à la racine du dépôt contenant :
   - AUDIT_FRONTEND.md - Analyse émotionnelle détaillée de l'existant
   - DESIGN_SYSTEM.md - Spécifications émotionnelles complètes à suivre
 - Les meilleures pratiques d'accessibilité émotionnelle (WCAG 2.1 AA avec approche chaleureuse)

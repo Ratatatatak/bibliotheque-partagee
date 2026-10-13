@@ -37,6 +37,12 @@ ALTER TABLE public.games
   ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
   ADD COLUMN IF NOT EXISTS data_origin TEXT;
 
+-- Une information absente de la source doit pouvoir rester vide plutôt que
+-- d'être remplacée par une valeur inventée (ex. « 1 joueur », « 0 an »).
+ALTER TABLE public.games ALTER COLUMN min_players DROP NOT NULL;
+ALTER TABLE public.games ALTER COLUMN max_players DROP NOT NULL;
+ALTER TABLE public.games ALTER COLUMN min_age DROP NOT NULL;
+
 -- Les fiches dont l'identifiant est numérique proviennent de BoardGameGeek.
 UPDATE public.games SET bgg_id = id WHERE bgg_id IS NULL AND id ~ '^[0-9]+$';
 UPDATE public.games SET data_origin = CASE WHEN bgg_id IS NOT NULL THEN 'bgg' ELSE 'legacy-catalog' END

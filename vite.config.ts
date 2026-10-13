@@ -16,6 +16,13 @@ function bggApiProxy(token: string): Plugin {
         }
 
         const path = request.url?.replace(/^\/api\/bgg/, '') || '/'
+        const endpoint = path.replace(/^\//, '').split('?')[0]
+        if (!['search', 'thing'].includes(endpoint)) {
+          response.statusCode = 404
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify({ error: 'Point d’accès BGG non autorisé' }))
+          return
+        }
         const bggUrl = `https://boardgamegeek.com/xmlapi2${path}`
 
         try {
