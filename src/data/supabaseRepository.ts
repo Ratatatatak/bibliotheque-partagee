@@ -70,6 +70,7 @@ const mapGame = (row: Row, sources: GameSource[] = []): Game => {
     playingTime: num(row.duration),
     minAge: num(row.min_age),
     description: str(row.description),
+    descriptionFr: str(row.description_fr),
     categories: categories.length ? categories : legacyCategory && legacyCategory !== 'Jeu de société' ? [legacyCategory] : [],
     mechanics: arr(row.mechanics),
     imageUrl: str(row.image_url),
@@ -198,6 +199,7 @@ const gameToRow = (input: GameInput, id: string) => ({
   average_rating: input.rating,
   ratings_count: input.ratingsCount,
   data_origin: input.origin,
+  ...(input.descriptionFr !== undefined ? { description_fr: input.descriptionFr, description_fr_at: input.descriptionFr ? new Date().toISOString() : null } : {}),
 });
 
 /** Colonnes présentes avant la migration 010 (pour rester compatible avec une base non migrée). */
@@ -348,7 +350,8 @@ export const supabaseRepository: LibraryRepository = {
   },
   mergeGames: (_actorId, sourceId, targetId) => rpc('merge_games', { source_game_id: sourceId, target_game_id: targetId }, 'Fusion impossible'),
   async updateGameDetails(_actorId, gameId, input) {
-    const { id: _ignored, ...row } = gameToRow(input, gameId);
+    // Une fiche mise à jour sans traduction (ex. nouvelle description BGG) sera retraduite.
+    const { id: _ignored, ...row } = gameToRow({ ...input, descriptionFr: input.descriptionFr ?? null }, gameId);
     const { data, error } = await requireSupabase().from('games').update(row).eq('id', gameId).select('id');
     if (error) fail(error, 'Mise à jour de la fiche impossible');
     if (!data?.length) throw new DomainError('Mise à jour refusée : seuls les administrateurs peuvent modifier une fiche.');
@@ -359,6 +362,7 @@ export const supabaseRepository: LibraryRepository = {
     }
   },
   deleteGame: (_actorId, gameId) => rpc('delete_unused_game', { target_game_id: gameId }, 'Suppression impossible'),
+  saveTranslation: (_actorId, gameId, text) => rpc('save_game_translation', { target_game_id: gameId, translated: text }, 'Enregistrement de la traduction impossible'),
 
   async listFavorites(actorId) {
     const { data, error } = await requireSupabase().from('favorites').select('game_id').eq('user_id', actorId);

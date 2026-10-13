@@ -208,6 +208,7 @@ const Admin = () => {
   const [filter, setFilter] = useState('');
   const [refreshing, setRefreshing] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
+  const [translating, setTranslating] = useState<{ done: number; total: number } | null>(null);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -217,6 +218,29 @@ const Admin = () => {
   const bggGames = useMemo(() => list.filter((g) => g.bggId && g.id === g.bggId), [list]);
   const legacyUsed = useMemo(() => list.filter((g) => !(g.bggId && g.id === g.bggId) && g.copies.length > 0), [list]);
   const legacyUnused = useMemo(() => list.filter((g) => !(g.bggId && g.id === g.bggId) && g.copies.length === 0), [list]);
+  const untranslated = useMemo(() => list.filter((g) => g.description && !g.descriptionFr), [list]);
+
+  const translateAll = async () => {
+    if (!user) return;
+    const { translateToFrench } = await import('@/integrations/translate');
+    const todo = [...untranslated];
+    let ok = 0;
+    setTranslating({ done: 0, total: todo.length });
+    for (const [index, game] of todo.entries()) {
+      try {
+        await repository.saveTranslation(user.id, game.id, await translateToFrench(game.description!));
+        ok += 1;
+      } catch (e) {
+        toast.error(`Traduction interrompue (${game.name}) : ${errorMessage(e)}`);
+        break;
+      }
+      setTranslating({ done: index + 1, total: todo.length });
+    }
+    setTranslating(null);
+    await queryClient.invalidateQueries({ queryKey: ['library'] });
+    if (ok) toast.success(`${ok} description${ok > 1 ? 's traduites' : ' traduite'} en français.`);
+  };
+
   const shown = bggGames.filter((g) => !filter || g.name.toLowerCase().includes(filter.toLowerCase()));
 
   const refreshFromBgg = async (game: GameWithCopies) => {
@@ -285,6 +309,14 @@ const Admin = () => {
               <h2 id="all" className="font-display text-xl font-bold text-brun-cafe-doux">Fiches BoardGameGeek ({bggGames.length})</h2>
               <div className="sm:w-72"><label htmlFor="admin-filter" className="sr-only">Filtrer</label><Input id="admin-filter" placeholder="Filtrer par nom…" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
             </div>
+            {untranslated.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <span>{untranslated.length} description{untranslated.length > 1 ? 's' : ''} pas encore en français (elles se traduisent aussi toutes seules à la première visite).</span>
+                <Button size="sm" variant="outline" disabled={Boolean(translating)} onClick={() => void translateAll()}>
+                  {translating ? `Traduction… ${translating.done}/${translating.total}` : 'Tout traduire maintenant'}
+                </Button>
+              </div>
+            )}
             {bggGames.length === 0 ? <p className="rounded-lg border border-dashed border-gris-pierre-chaude p-6 text-sm text-muted-foreground">Aucune fiche pour l’instant.</p> : (
               <div className="surface overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-sm text-brun-cafe-doux">

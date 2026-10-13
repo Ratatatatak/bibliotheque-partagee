@@ -61,6 +61,8 @@ export const GameEditDialog = ({ game, onClose }: { game: Game | null; onClose: 
       imageUrl: draft.imageUrl.trim() || null,
       description: draft.description.trim() || null,
       origin: 'manual',
+      // Description modifiée : l'ancienne traduction n'est plus valable, elle sera refaite.
+      descriptionFr: draft.description.trim() === (game.description ?? '') ? game.descriptionFr ?? null : null,
     };
     save.mutate(input, { onSuccess: onClose });
   };

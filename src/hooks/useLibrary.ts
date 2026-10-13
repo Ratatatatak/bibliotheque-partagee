@@ -92,3 +92,29 @@ export const useLibraryAction = <TArgs,>(
     onSettled: () => queryClient.invalidateQueries({ queryKey: [ROOT] }),
   });
 };
+
+/**
+ * Description en français : la traduction enregistrée si elle existe ; sinon, le site la
+ * demande à Google Traduction à la première consultation et l'enregistre pour tout le groupe.
+ * En cas d'indisponibilité, la description d'origine reste affichée.
+ */
+export const useFrenchDescription = (game: { id: string; description: string | null; descriptionFr?: string | null } | null | undefined) => {
+  const { user } = useAuth();
+  const needsTranslation = Boolean(game?.description && !game.descriptionFr && user);
+  const translation = useQuery({
+    queryKey: [ROOT, 'translation', game?.id ?? ''],
+    enabled: needsTranslation,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { translateToFrench } = await import('@/integrations/translate');
+      const text = await translateToFrench(game!.description!);
+      // Enregistrement pour les autres membres ; un échec ici n'empêche pas l'affichage.
+      await repository.saveTranslation(user!.id, game!.id, text).catch(() => undefined);
+      return text;
+    },
+  });
+  const french = game?.descriptionFr ?? translation.data ?? null;
+  return { french, translating: needsTranslation && translation.isLoading, failed: translation.isError };
+};

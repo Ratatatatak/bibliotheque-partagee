@@ -66,6 +66,8 @@ export interface LibraryRepository {
   mergeGames(actorId: MemberId, sourceId: string, targetId: string): Promise<void>;
   updateGameDetails(actorId: MemberId, gameId: string, input: GameInput): Promise<void>;
   deleteGame(actorId: MemberId, gameId: string): Promise<void>;
+  /** Enregistre la traduction française d'une fiche qui n'en a pas encore. */
+  saveTranslation(actorId: MemberId, gameId: string, text: string): Promise<void>;
 
   listFavorites(actorId: MemberId): Promise<string[]>;
   toggleFavorite(actorId: MemberId, gameId: string): Promise<void>;
