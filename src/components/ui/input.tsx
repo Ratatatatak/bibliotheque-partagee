@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const inputVariants = cva(
-  "flex h-10 w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-sm text-brun-cafe-doux placeholder:text-brun-cafe-doux/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm hover:shadow-md",
+  "flex h-12 w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-sm text-brun-cafe-doux placeholder:text-brun-cafe-doux/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 shadow-sm hover:shadow-md",
   {
     variants: {
       variant: {
@@ -16,7 +16,7 @@ const inputVariants = cva(
         link: "border-transparent underline-offset-4 hover:underline text-terre-cuite-chaleureuse",
       },
       size: {
-        default: "h-10 px-4 py-3 text-sm",
+        default: "h-12 px-4 py-3 text-base",
         sm: "h-9 rounded-md px-3 text-xs",
         lg: "h-11 rounded-md px-4 text-base",
         icon: "h-10 w-10",

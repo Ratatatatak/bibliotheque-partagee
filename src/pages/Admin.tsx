@@ -2,31 +2,56 @@ import { useQuery } from '@tanstack/react-query';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { ErrorState, LoadingState, PageHeader } from '@/components/library/PageState';
+import { formatDate } from '@/domain/dates';
 
-type Profile = { id: string; full_name: string | null; role: 'user' | 'admin'; created_at: string };
+type Profile = { id: string; full_name: string | null; username: string | null; role: 'user' | 'admin'; created_at: string };
 
+/**
+ * Page d'administration (lecture seule). L'accès réel est contrôlé côté base par
+ * la fonction public.is_admin() et les règles RLS ; cette page ne fait qu'afficher.
+ */
 const Admin = () => {
-  const { user } = useAuth();
-  const { data: profile, isLoading: profileLoading } = useQuery<Profile | null>({
-    queryKey: ['currentProfile', user?.id],
+  const { user, mode } = useAuth();
+  const isAdmin = useQuery({
+    queryKey: ['isAdmin', user?.id],
+    enabled: mode === 'supabase' && Boolean(user),
     queryFn: async () => {
-      const { data } = await supabase.from('profiles' as never).select('id, full_name, role, created_at').eq('id', user?.id as never).maybeSingle();
-      return data as Profile | null;
+      const { data, error } = await supabase!.rpc('is_admin');
+      if (error) throw error;
+      return data === true;
     },
   });
-  const { data: profiles = [], isLoading } = useQuery<Profile[]>({
+  const profiles = useQuery({
     queryKey: ['adminProfiles'],
-    enabled: profile?.role === 'admin',
+    enabled: isAdmin.data === true,
     queryFn: async () => {
-      const { data, error } = await supabase.from('profiles' as never).select('id, full_name, role, created_at').order('created_at', { ascending: false });
+      const { data, error } = await supabase!.from('profiles').select('id, full_name, username, role, created_at').order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as Profile[];
+      return (data ?? []) as Profile[];
     },
   });
 
-  if (profileLoading) return <div className="p-8 text-center text-muted-foreground">Chargement...</div>;
-  if (!profile || profile.role !== 'admin') return <Navigate to="/" replace />;
-  return <main className="min-h-screen bg-background"><div className="container mx-auto max-w-5xl px-4 py-8"><h1 className="text-3xl font-bold">Administration</h1><p className="mt-2 text-muted-foreground">Utilisateurs inscrits</p>{isLoading ? <p className="mt-8 text-muted-foreground">Chargement des utilisateurs...</p> : <div className="mt-8 overflow-x-auto rounded-lg border bg-card"><table className="w-full text-left text-sm"><thead className="border-b bg-muted/40"><tr><th className="p-4">Nom</th><th className="p-4">Rôle</th><th className="p-4">Inscription</th></tr></thead><tbody>{profiles.map(item => <tr key={item.id} className="border-b last:border-0"><td className="p-4">{item.full_name || 'Sans pseudo'}</td><td className="p-4">{item.role}</td><td className="p-4">{new Date(item.created_at).toLocaleDateString('fr-FR')}</td></tr>)}</tbody></table></div>}</div></main>;
+  if (mode === 'local') return <Navigate to="/" replace />;
+  if (isAdmin.isLoading) return <LoadingState />;
+  if (isAdmin.isError) return <div className="page-container"><ErrorState error={isAdmin.error} /></div>;
+  if (!isAdmin.data) return <Navigate to="/" replace />;
+
+  return (
+    <div className="page-container">
+      <PageHeader eyebrow="Administration" title="Membres inscrits" />
+      {profiles.isLoading ? <LoadingState /> : profiles.isError ? <ErrorState error={profiles.error} /> : (
+        <div className="surface overflow-x-auto">
+          <table className="w-full min-w-[480px] text-left text-sm text-brun-cafe-doux">
+            <thead className="border-b border-gris-pierre-chaude bg-gris-perle/60"><tr><th scope="col" className="p-4">Nom</th><th scope="col" className="p-4">Pseudo</th><th scope="col" className="p-4">Rôle</th><th scope="col" className="p-4">Inscription</th></tr></thead>
+            <tbody>{(profiles.data ?? []).map((p) => (
+              <tr key={p.id} className="border-b border-gris-pierre-chaude last:border-0"><td className="p-4">{p.full_name || '—'}</td><td className="p-4">{p.username ? `@${p.username}` : '—'}</td><td className="p-4">{p.role === 'admin' ? 'Administrateur' : 'Membre'}</td><td className="p-4">{formatDate(p.created_at)}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export { Admin };

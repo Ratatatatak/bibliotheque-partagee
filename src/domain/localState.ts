@@ -131,7 +131,7 @@ export const setCopyAvailability = (state: LocalState, actorId: MemberId, copyId
   if (copy.status === 'lent' || activeLoanForCopy(state, copyId)) {
     throw new DomainError('Cet exemplaire est actuellement prêté : enregistrez d’abord son retour.');
   }
-  const status = available ? 'available' : 'unavailable';
+  const status: GameCopy['status'] = available ? 'available' : 'unavailable';
   let requests = state.requests;
   if (!available) {
     // Les demandes en attente deviennent caduques si le propriétaire retire le jeu du prêt.

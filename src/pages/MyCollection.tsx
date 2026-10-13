@@ -1,512 +1,229 @@
-import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Loader2, Search, Trash2, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { gameCatalog } from '@/data/gameCatalog';
-import { bggService } from '@/lib/bggService';
-import type { BGGGameDetails, BGGSearchResult } from '@/integrations/bgg/client';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Check, Library, Loader2, Search, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
+import { repository, useCollection, useLibraryAction } from '@/hooks/useLibrary';
+import { bggService } from '@/lib/bggService';
+import { bggDetailsToGameInput, type BGGGameDetails, type BGGSearchResult } from '@/integrations/bgg/client';
+import { catalogGameToInput, gameCatalog } from '@/data/gameCatalog';
+import { GameImage } from '@/components/library/GameImage';
+import { CopyStatusBadge } from '@/components/library/CopyStatusBadge';
+import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/library/PageState';
+import { errorMessage } from '@/data/repository';
+import { memberLabel, type CopyView, type GameInput } from '@/domain/types';
+import { formatDate } from '@/domain/dates';
 
-type CollectionItem = {
-  id: string;
-  status: string;
-  game: {
-    id: string;
-    name: string;
-    description: string | null;
-    min_players: number;
-    max_players: number;
-    duration: number | null;
-    category: string | null;
-    image_url?: string | null;
-    year?: number | null;
-    min_age?: number | null;
-    average_rating?: number | null;
-    ratings_count?: number | null;
-  };
-};
-
-const getPositiveNumber = (value: string | null, fallback: number) => {
-  const number = Number.parseInt(value || '', 10);
-  return Number.isFinite(number) && number > 0 ? number : fallback;
-};
-
-const loadLocalCollection = (): CollectionItem[] => {
-  try {
-    const saved = localStorage.getItem('bibliotheque-local-collection');
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-};
-
-const MyCollection = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [localCollection, setLocalCollection] = useState<CollectionItem[]>(loadLocalCollection);
-  const [selectedGameId, setSelectedGameId] = useState<string>('');
-  const [saving, setSaving] = useState<boolean>(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchAttempt, setSearchAttempt] = useState(0);
-  const [searchResults, setSearchResults] = useState<BGGSearchResult[]>([]);
+/** Recherche BGG avec délai de frappe, gestion d'erreur et nouvel essai. */
+const BggSearch = ({ ownedIds, onAdd, adding }: { ownedIds: Set<string>; onAdd: (input: GameInput) => void; adding: boolean }) => {
+  const [term, setTerm] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const [results, setResults] = useState<BGGSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [selectedBGGGame, setSelectedBGGGame] = useState<BGGSearchResult | null>(null);
-  const [selectedBGGDetails, setSelectedBGGDetails] = useState<BGGGameDetails | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<BGGSearchResult | null>(null);
+  const [details, setDetails] = useState<BGGGameDetails | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [detailsError, setDetailsError] = useState(false);
 
   useEffect(() => {
-    const normalizedTerm = searchTerm.trim();
-    if (!normalizedTerm) {
-      setSearchResults([]);
-      setSearchError(null);
-      setSearching(false);
-      return;
+    const query = term.trim();
+    if (query.length < 2) {
+      setResults([]); setError(null); setSearching(false);
+      return undefined;
     }
-
     let active = true;
-    setSearching(true);
-    setSearchError(null);
-    const timeoutId = window.setTimeout(async () => {
+    setSearching(true); setError(null);
+    const timer = window.setTimeout(async () => {
       try {
-        const results = await bggService.search(normalizedTerm);
-        if (active) setSearchResults(results);
-      } catch (error) {
-        console.error('Erreur lors de la recherche BGG:', error);
-        if (active) {
-          setSearchResults([]);
-          setSearchError('La recherche est momentanément indisponible. Vous pouvez réessayer.');
-        }
+        const found = await bggService.search(query);
+        if (active) setResults(found);
+      } catch (e) {
+        if (active) { setResults([]); setError(errorMessage(e, 'La recherche BoardGameGeek est momentanément indisponible.')); }
       } finally {
         if (active) setSearching(false);
       }
     }, 450);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [term, attempt]);
 
-    return () => {
-      active = false;
-      window.clearTimeout(timeoutId);
-    };
-  }, [searchAttempt, searchTerm]);
-
-  // Charge la collection depuis le localStorage au démarrage
-  // (utile si l'utilisateur revient plus tard et que Supabase n'est pas encore configuré)
-  // Mais en mode Supabase uniquement, cette ligne sera principalement utilisée
-  // pour gérer les cas où l'utilisateur n'est pas connecté
-  const getOrCreateGame = async (gameData: typeof gameCatalog[number]) => {
-    // Vérifie si le jeu existe déjà en base
-    const { data: existingGame, error: fetchError } = await supabase
-      .from('games')
-      .select('*')
-      .eq('id', gameData.id)
-      .single();
-
-    if (!fetchError && existingGame) {
-      return { data: existingGame };
-    }
-
-    // Convert CatalogGame to match database schema (nullable fields)
-    const gameToInsert = {
-      id: gameData.id,
-      name: gameData.name,
-      description: gameData.description ?? null,
-      image_url: gameData.image_url,
-      min_players: gameData.min_players,
-      max_players: gameData.max_players,
-      duration: gameData.duration ?? null,
-      min_age: gameData.min_age,
-      category: gameData.category ?? null,
-    };
-
-    const { data: newGame, error: gameError } = await supabase
-      .from('games')
-      .insert(gameToInsert)
-      .select()
-      .single();
-
-    if (gameError) throw gameError;
-    return { data: newGame };
-  };
-
-  // NOUVELLE FONCTION : Texte du statut
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'available': return 'Disponible';
-      case 'lent': return 'Prêté';
-      case 'unavailable': return 'Indisponible';
-      default: return status;
-    }
-  };
-
-  // NOUVELLE FONCTION : Variante de badge
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'available': return 'default';
-      case 'lent': return 'destructive';
-      case 'unavailable': return 'secondary';
-      default: return 'secondary';
-    }
-  };
-
-  const persistLocalCollection = (nextCollection: CollectionItem[]) => {
-    setLocalCollection(nextCollection);
-    localStorage.setItem('bibliotheque-local-collection', JSON.stringify(nextCollection));
-  };
-
-  const { data: gameCopies = [], isLoading, error } = useQuery<CollectionItem[]>({
-    queryKey: ['myCollection', user?.id],
-    queryFn: async () => {
-      // Toujours utiliser Supabase - plus de fallback vers demo
-      if (!user) {
-        // Si l'utilisateur n'est pas connecté, retourner une collection vide
-        // plutôt que de retourner des données de demo
-        return [];
-      }
-
-      const { data, error: queryError } = await supabase
-        .from('game_copies')
-        .select('id, status, game:games(id, name, description, image_url, published_year, min_players, max_players, duration, min_age, category)')
-        .eq('owner_id', user?.id);
-      if (queryError) throw queryError;
-      return (data || []) as CollectionItem[];
-    },
-  });
-
-  // En mode Supabase uniquement, on utilise toujours les données Supabase
-  // lorsqu'elles sont disponibles et qu'il n'y a pas d'erreur
-  const visibleCollection = !isLoading && !error ? gameCopies : localCollection;
-
-  const selectBGGGame = async (result: BGGSearchResult) => {
-    setSelectedBGGGame(result);
-    setSelectedBGGDetails(null);
-    setDetailsError(false);
-    setLoadingDetails(true);
+  const select = async (result: BGGSearchResult) => {
+    setSelected(result); setDetails(null); setDetailsError(null); setLoadingDetails(true);
     try {
-      const details = await bggService.getDetails(result.id);
-      setSelectedBGGDetails(details);
-      setDetailsError(!details);
-    } catch {
-      setDetailsError(true);
+      const found = await bggService.getDetails(result.id);
+      if (!found) setDetailsError('BoardGameGeek n’a pas renvoyé de fiche pour ce jeu.');
+      setDetails(found);
+    } catch (e) {
+      setDetailsError(errorMessage(e, 'Fiche indisponible pour le moment.'));
     } finally {
       setLoadingDetails(false);
     }
   };
 
-  const resetBGGSearch = () => {
-    setSearchTerm('');
-    setSearchResults([]);
-    setSearchError(null);
-    setSelectedBGGGame(null);
-    setSelectedBGGDetails(null);
-    setDetailsError(false);
-  };
-
-  const addBGGGame = async () => {
-    if (!user || !selectedBGGGame || !selectedBGGDetails || saving) return;
-    setSaving(true);
-    try {
-      const { data: existingCopy, error: existingCopyError } = await supabase
-        .from('game_copies')
-        .select('id')
-        .eq('owner_id', user.id)
-        .eq('game_id', selectedBGGDetails.id)
-        .maybeSingle();
-      if (existingCopyError) throw existingCopyError;
-      if (existingCopy) {
-        toast.info('Ce jeu est déjà dans votre collection.');
-        return;
-      }
-
-      const gameData = {
-        id: selectedBGGDetails.id,
-        name: selectedBGGDetails.name || selectedBGGGame.name,
-        description: selectedBGGDetails.description,
-        image_url: selectedBGGDetails.image || selectedBGGDetails.thumbnail,
-        published_year: selectedBGGDetails.year ? getPositiveNumber(selectedBGGDetails.year, 0) || null : null,
-        min_players: getPositiveNumber(selectedBGGDetails.minPlayers, 1),
-        max_players: getPositiveNumber(selectedBGGDetails.maxPlayers, getPositiveNumber(selectedBGGDetails.minPlayers, 1)),
-        duration: selectedBGGDetails.playingTime ? getPositiveNumber(selectedBGGDetails.playingTime, 0) || null : null,
-        min_age: getPositiveNumber(selectedBGGDetails.minAge, 0),
-        category: 'Jeu de société',
-        average_rating: selectedBGGDetails.rating.average ? Number.parseFloat(selectedBGGDetails.rating.average) : null,
-        ratings_count: selectedBGGDetails.rating.usersRated ? getPositiveNumber(selectedBGGDetails.rating.usersRated, 0) || null : null,
-      };
-
-      const { error: gameError } = await supabase.from('games').upsert(gameData, { onConflict: 'id' });
-      if (gameError) throw gameError;
-
-      const { error: copyError } = await supabase.from('game_copies').insert({
-        game_id: gameData.id,
-        owner_id: user.id,
-        status: 'available'
-      });
-      if (copyError) {
-        if (copyError.code === '23505') {
-          toast.info('Ce jeu est déjà dans votre collection.');
-          return;
-        }
-        throw copyError;
-      }
-
-      toast.success('Jeu ajouté à votre collection.');
-      await queryClient.invalidateQueries({ queryKey: ['myCollection', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['games'] });
-      resetBGGSearch();
-    } catch (err) {
-      console.error('Erreur lors de l\'ajout du jeu:', err);
-      toast.error('Erreur lors de l\'ajout du jeu à votre collection.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const addCatalogGame = async () => {
-    const selectedGame = gameCatalog.find(game => game.id === selectedGameId);
-    if (!selectedGame || !user || saving) return;
-    setSaving(true);
-    try {
-      const { data: game } = await getOrCreateGame(selectedGame);
-      if (!game) throw new Error('Game data is undefined after getOrCreateGame');
-      const { error: copyError } = await supabase.from('game_copies').insert({
-        game_id: game.id,
-        owner_id: user.id,
-        status: 'available'
-      });
-      if (copyError) throw copyError;
-      toast.success('Jeu ajouté à votre collection.');
-      await queryClient.invalidateQueries({ queryKey: ['myCollection', user.id] });
-      queryClient.invalidateQueries({ queryKey: ['games'] });
-    } catch (err) {
-      console.error('Erreur lors de l\'ajout du jeu:', err);
-      toast.error('Erreur lors de l\'ajout du jeu à votre collection.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const removeGame = async (id: string) => {
-    if (!user) {
-      toast.error('Vous devez être connecté pour modifier votre collection.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { error } = await supabase.from('game_copies').delete().eq('id', id);
-      if (error) throw error;
-
-      toast.success('Jeu retiré de votre collection.');
-      queryClient.invalidateQueries({ queryKey: ['myCollection'] });
-      queryClient.invalidateQueries({ queryKey: ['games'] });
-    } catch (err) {
-      console.error('Erreur lors de la suppression du jeu:', err);
-      toast.error('Erreur lors de la suppression du jeu de votre collection.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleLoanStatus = async (id: string, currentStatus: string) => {
-    if (!user) {
-      toast.error('Vous devez être connecté pour modifier le statut de prêt.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const newStatus = currentStatus === 'available' ? 'lent' : 'available';
-      const { error } = await supabase
-        .from('game_copies')
-        .update({ status: newStatus })
-        .eq('id', id);
-      if (error) throw error;
-
-      toast.success(`Statut mis à jour : ${getStatusText(newStatus)}`);
-      queryClient.invalidateQueries({ queryKey: ['myCollection'] });
-      queryClient.invalidateQueries({ queryKey: ['games'] });
-    } catch (err) {
-      console.error('Erreur lors de la mise à jour du statut:', err);
-      toast.error('Erreur lors de la mise à jour du statut du jeu.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center py-12">Chargement...</div>;
-  }
-
-  if (error) {
-    console.error('Error fetching collection:', error);
-    return <div className="min-h-screen flex items-center justify-center py-12">Erreur lors du chargement de votre collection. Veuillez vérifier votre connexion Supabase et vous assurer d'être connecté.</div>;
-  }
+  const reset = () => { setSelected(null); setDetails(null); setDetailsError(null); };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-7xl">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Ma collection</h1>
-          <Link to="/games" className="mt-4 sm:mt-0">
-            <Button variant="outline"> Retour au catalogue </Button>
-          </Link>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-foreground mb-2">Ajouter un jeu à votre collection</label>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="w-full sm:w-auto">
-              <select
-                value={selectedGameId}
-                onChange={(e) => setSelectedGameId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:focus-visible:outline-none file:focus-visible:ring-2 file:focus-visible:ring-ring file:focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="">Sélectionnez un jeu...</option>
-                {gameCatalog
-                  .slice()
-                  .sort((a, b) => a.name.localeCompare(b.name))
-                  .map(game => (
-                    <option key={game.id} value={game.id}>
-                      {game.name} ({game.min_players}-{game.max_players} joueurs)
-                    </option>
-                  ))}
-              </select>
-            </div>
-            <Button onClick={addCatalogGame} disabled={saving || !selectedGameId || !user}>
-              {saving ? 'Ajout en cours...' : 'Ajouter à la collection'}
-            </Button>
-          </div>
-          {selectedGameId && !saving && (
-            <p className="mt-2 text-sm text-muted-foreground">
-              Sélectionné : {gameCatalog.find(game => game.id === selectedGameId)?.name || 'Inconnu'}
-            </p>
-          )}
-        </div>
-
-        <section aria-labelledby="bgg-search-title" className="mb-8 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div>
-              <h2 id="bgg-search-title" className="text-lg font-bold text-foreground">Ajouter depuis BoardGameGeek</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Trouvez un jeu qui ne figure pas encore dans le catalogue.</p>
-            </div>
-            {(searchTerm || selectedBGGGame) && (
-              <Button type="button" variant="ghost" size="icon" onClick={resetBGGSearch} aria-label="Fermer la recherche">
-                <X />
-              </Button>
-            )}
-          </div>
-          {!user ? (
-            <p className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground" role="status">Connectez-vous pour ajouter un jeu à votre collection.</p>
-          ) : (
-            <>
-              <label htmlFor="bgg-game-search" className="mb-2 block text-sm font-medium text-foreground">Rechercher un jeu à ajouter</label>
-              <Input
-                id="bgg-game-search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Ex. Catan, Azul..."
-                autoComplete="off"
-                startContent={<Search className="h-4 w-4 text-muted-foreground" />}
-                aria-describedby="bgg-search-status"
-              />
-              <div id="bgg-search-status" className="mt-3 min-h-6 text-sm" aria-live="polite">
-                {searching && <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Recherche en cours...</span>}
-                {!searching && searchError && <span className="flex flex-wrap items-center gap-2 text-destructive">{searchError}<Button type="button" variant="link" size="sm" onClick={() => setSearchAttempt((attempt) => attempt + 1)}>Réessayer</Button></span>}
-                {!searching && !searchError && searchTerm.trim() && searchResults.length === 0 && <span className="text-muted-foreground">Aucun jeu trouvé. Essayez un autre nom.</span>}
-              </div>
-              {searchResults.length > 0 && !selectedBGGGame && (
-                <ul className="mt-2 max-h-80 space-y-2 overflow-y-auto" aria-label="Résultats de recherche BoardGameGeek">
-                  {searchResults.map((result) => {
-                    const alreadyAdded = visibleCollection.some((item) => item.game.id === result.id);
-                    return (
-                      <li key={`${result.id}-${result.name}`}>
-                        <button type="button" className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-border bg-background px-3 py-3 text-left transition-colors hover:border-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60" onClick={() => selectBGGGame(result)} disabled={alreadyAdded}>
-                          <span className="min-w-0"><span className="block truncate font-semibold text-foreground">{result.name}</span><span className="text-xs text-muted-foreground">{result.year || 'Année inconnue'} · BGG #{result.id}</span></span>
-                          {alreadyAdded ? <span className="shrink-0 text-xs font-medium text-muted-foreground">Déjà dans la collection</span> : <span className="shrink-0 text-sm text-primary">Sélectionner</span>}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              {selectedBGGGame && (
-                <div className="mt-4 rounded-lg border border-primary/30 bg-background p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                      {selectedBGGDetails?.thumbnail && <img src={selectedBGGDetails.thumbnail} alt="" className="h-16 w-16 rounded-md object-cover" />}
-                      <div><p className="font-semibold text-foreground">{selectedBGGDetails?.name || selectedBGGGame.name}</p><p className="text-sm text-muted-foreground">{selectedBGGGame.year || 'Année inconnue'} · BGG #{selectedBGGGame.id}</p></div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" onClick={() => { setSelectedBGGGame(null); setSelectedBGGDetails(null); setDetailsError(false); }} disabled={saving}>Choisir un autre</Button>
-                      <Button type="button" onClick={addBGGGame} disabled={saving || loadingDetails || detailsError || !selectedBGGDetails || visibleCollection.some((item) => item.game.id === selectedBGGGame.id)}>
-                        {saving ? <><Loader2 className="animate-spin" />Ajout en cours...</> : loadingDetails ? <><Loader2 className="animate-spin" />Chargement...</> : visibleCollection.some((item) => item.game.id === selectedBGGGame.id) ? <><Check />Déjà ajouté</> : 'Ajouter à ma collection'}
-                      </Button>
-                    </div>
-                  </div>
-                  {detailsError && <p className="mt-3 text-sm text-destructive" role="alert">Les informations détaillées de ce jeu sont indisponibles. Choisissez un autre jeu.</p>}
-                </div>
-              )}
-            </>
-          )}
-        </section>
-
-        <div className="space-y-4">
-          {visibleCollection.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">
-              Votre collection est vide. Ajoutez des jeux depuis le catalogue !
-            </p>
-          ) : (
-            <>
-              {visibleCollection
-                .slice()
-                .sort((a, b) => a.game.name.localeCompare(b.game.name))
-                .map((item) => (
-                <article key={item.id} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
-                  <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-5">
-                    <Link to={`/game/${item.game.id}`} className="block w-full">
-                      <div className="space-y-3">
-                        <div className="flex gap-4">
-                          {item.game.image_url ? <img src={item.game.image_url} alt="" className="h-20 w-16 shrink-0 rounded-md object-cover" /> : null}
-                          <div className="min-w-0 space-y-3">
-                            <p className="text-xs font-bold uppercase tracking-wider text-accent">{item.game.category || 'Jeu de société'}</p>
-                            <h3 className="text-lg font-bold text-foreground group-hover:text-primary">{item.game.name}</h3>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-x-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-x-2">
-                            <span>{item.game.min_players}-{item.game.max_players} joueurs</span>
-                          </div>
-                          {item.game.duration && (
-                            <>
-                              <span className="mx-2 h-4 w-[1px] bg-gris-pierre-chaude/40 hidden sm:block"></span>
-                              <span className="flex items-center gap-x-1">
-                                <span>{item.game.duration} min</span>
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                    <div className="flex items-center gap-3">
-                      <Button variant="ghost" size="icon" onClick={() => toggleLoanStatus(item.id, item.status)} className="p-1">
-                        <Badge variant={getStatusVariant(item.status)}>{getStatusText(item.status)}</Badge>
-                      </Button>
-                      <Button onClick={() => removeGame(item.id)} disabled={saving} className="text-destructive hover:bg-destructive/10">
-                        <Trash2 className="h-4 w-4" />
-                        Retirer
-                      </Button>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </>
-          )}
-        </div>
+    <div>
+      <label htmlFor="bgg-search" className="field-label">Rechercher sur BoardGameGeek</label>
+      <Input id="bgg-search" value={term} onChange={(e) => { setTerm(e.target.value); reset(); }} placeholder="Ex. : Azul, Les Aventuriers du Rail…" autoComplete="off" startContent={<Search className="h-4 w-4 text-muted-foreground" />} aria-describedby="bgg-status" />
+      <div id="bgg-status" className="mt-2 min-h-6 text-sm" aria-live="polite">
+        {searching && <span className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Recherche en cours…</span>}
+        {!searching && error && <span className="flex flex-wrap items-center gap-2 font-semibold text-destructive">{error}<Button variant="link" size="sm" onClick={() => setAttempt((a) => a + 1)}>Réessayer</Button></span>}
+        {!searching && !error && term.trim().length >= 2 && results.length === 0 && <span className="text-muted-foreground">Aucun jeu trouvé. Essayez le titre original (souvent en anglais).</span>}
       </div>
+
+      {!selected && results.length > 0 && (
+        <ul className="mt-2 max-h-96 space-y-2 overflow-y-auto pr-1" aria-label="Résultats BoardGameGeek">
+          {results.map((result) => {
+            const owned = ownedIds.has(result.id);
+            return (
+              <li key={result.id}>
+                <button type="button" disabled={owned} onClick={() => void select(result)}
+                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-left hover:border-terre-cuite-chaleureuse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse disabled:cursor-not-allowed disabled:opacity-60">
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-brun-cafe-doux">{result.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {result.year ?? 'Année inconnue'} · {result.type === 'boardgameexpansion' ? 'Extension' : 'Jeu de base'} · BGG n° {result.id}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-sm font-semibold text-bleu-canard-profond">{owned ? 'Déjà dans votre collection' : 'Voir'}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {selected && (
+        <div className="mt-4 rounded-lg border border-gris-pierre-chaude bg-creme-de-lait p-4">
+          {loadingDetails ? <p className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" />Chargement de la fiche…</p> : details ? (
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <GameImage src={details.thumbnail} name={details.name} className="h-28 w-24 shrink-0 rounded-md" size="sm" />
+              <div className="min-w-0 flex-1 space-y-1 text-sm">
+                <p className="font-display text-lg font-bold text-brun-cafe-doux">{details.name}</p>
+                <p className="text-muted-foreground">
+                  {[details.year, details.type === 'boardgameexpansion' ? 'Extension' : 'Jeu de base',
+                    details.minPlayers && details.maxPlayers ? `${details.minPlayers}–${details.maxPlayers} joueurs` : null,
+                    details.playingTime ? `${details.playingTime} min` : null].filter(Boolean).join(' · ')}
+                </p>
+                {details.designers.length > 0 && <p className="text-muted-foreground">Auteur(s) : {details.designers.join(', ')}</p>}
+                <p className="text-xs text-muted-foreground">Vérifiez qu’il s’agit bien de votre jeu (et non d’une autre édition ou d’une extension).</p>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button onClick={() => onAdd(bggDetailsToGameInput(details))} disabled={adding}>{adding ? 'Ajout…' : 'Ajouter à ma collection'}</Button>
+                  <Button variant="outline" onClick={reset}>Choisir un autre jeu</Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-destructive" role="alert">{detailsError}</p>
+              <div className="flex gap-2"><Button variant="outline" onClick={() => void select(selected)}>Réessayer</Button><Button variant="ghost" onClick={reset}>Retour aux résultats</Button></div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const CopyCard = ({ gameId, gameName, imageUrl, copy }: { gameId: string; gameName: string; imageUrl: string | null; copy: CopyView }) => {
+  const [notes, setNotes] = useState(copy.notes ?? '');
+  const [editing, setEditing] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const availability = useLibraryAction((actorId, available: boolean) => repository.setCopyAvailability(actorId, copy.id, available), {
+    success: (available) => (available ? `${gameName} est de nouveau disponible au prêt.` : `${gameName} n’est plus proposé au prêt.`),
+  });
+  const saveNotes = useLibraryAction((actorId, value: string) => repository.updateCopyNotes(actorId, copy.id, value), { success: 'Remarque enregistrée.' });
+  const remove = useLibraryAction((actorId) => repository.removeCopy(actorId, copy.id), { success: `${gameName} a été retiré de votre collection.` });
+
+  return (
+    <li className="surface flex flex-col gap-4 p-4 sm:flex-row sm:p-6">
+      <Link to={`/game/${encodeURIComponent(gameId)}`} tabIndex={-1} aria-hidden="true"><GameImage src={imageUrl} name={gameName} className="h-28 w-24 shrink-0 rounded-lg" size="sm" /></Link>
+      <div className="min-w-0 flex-1 space-y-2">
+        <h2 className="font-display text-lg font-bold text-brun-cafe-doux"><Link to={`/game/${encodeURIComponent(gameId)}`} className="hover:underline">{gameName}</Link></h2>
+        <CopyStatusBadge copy={copy} />
+        {copy.activeLoan && <p className="text-sm text-brun-cafe-doux">Prêté à <strong>{memberLabel(copy.activeLoan.borrower)}</strong> depuis le {formatDate(copy.activeLoan.startDate)}. <Link to="/my-loans" className="font-semibold text-bleu-canard-profond underline">Gérer le prêt</Link></p>}
+        {copy.pendingRequestCount > 0 && <p className="text-sm font-semibold text-brun-cafe-doux">{copy.pendingRequestCount} demande{copy.pendingRequestCount > 1 ? 's' : ''} en attente — <Link to="/my-loans" className="text-bleu-canard-profond underline">répondre</Link></p>}
+        {editing ? (
+          <div className="space-y-2">
+            <label htmlFor={`notes-${copy.id}`} className="field-label">Remarque visible par le groupe (état, pièces manquantes…)</label>
+            <textarea id={`notes-${copy.id}`} rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse" />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => saveNotes.mutate(notes, { onSuccess: () => setEditing(false) })} disabled={saveNotes.isLoading}>Enregistrer</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setNotes(copy.notes ?? ''); setEditing(false); }}>Annuler</Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{copy.notes ? `Remarque : ${copy.notes}` : 'Aucune remarque.'} <button type="button" className="font-semibold text-bleu-canard-profond underline" onClick={() => setEditing(true)}>Modifier</button></p>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-wrap items-start gap-2 sm:flex-col">
+        {copy.status !== 'lent' && (
+          <Button size="sm" variant="outline" disabled={availability.isLoading} onClick={() => availability.mutate(copy.status !== 'available')}>
+            {copy.status === 'available' ? 'Ne plus prêter pour l’instant' : 'Rendre disponible'}
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" disabled={copy.status === 'lent'} title={copy.status === 'lent' ? 'Impossible pendant un prêt' : undefined} onClick={() => setConfirmRemove(true)}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" />Retirer
+        </Button>
+      </div>
+      <Modal open={confirmRemove} onOpenChange={setConfirmRemove} title={`Retirer ${gameName} ?`} description="Le jeu ne sera plus proposé au groupe. L’historique des prêts passés est conservé.">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={() => setConfirmRemove(false)}>Garder</Button>
+          <Button variant="destructive" disabled={remove.isLoading} onClick={() => remove.mutate(undefined, { onSuccess: () => setConfirmRemove(false) })}>Retirer de ma collection</Button>
+        </div>
+      </Modal>
+    </li>
+  );
+};
+
+const MyCollection = () => {
+  const collection = useCollection();
+  const [legacyId, setLegacyId] = useState('');
+  const add = useLibraryAction((actorId, input: GameInput) => repository.addGameToCollection(actorId, input), {
+    success: (input) => `${input.name} a été ajouté à votre collection.`,
+  });
+
+  const ownedIds = useMemo(() => new Set((collection.data ?? []).map((g) => g.id)), [collection.data]);
+  const copies = (collection.data ?? []).flatMap((game) => game.copies.map((copy) => ({ game, copy })));
+
+  return (
+    <div className="page-container">
+      <PageHeader eyebrow="Ma collection" title="Mes jeux" lead="Les jeux que vous possédez et que vous pouvez prêter au groupe." />
+
+      <section aria-labelledby="add-title" className="surface mb-10 p-4 sm:p-6">
+        <h2 id="add-title" className="mb-4 font-display text-xl font-bold text-brun-cafe-doux">Ajouter un jeu</h2>
+        <BggSearch ownedIds={ownedIds} adding={add.isLoading} onAdd={(input) => add.mutate(input)} />
+        <details className="mt-6 rounded-lg border border-dashed border-gris-pierre-chaude p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-brun-cafe-doux">BoardGameGeek indisponible ? Choisir dans l’ancien catalogue (non vérifié)</summary>
+          <p className="mt-2 text-sm text-muted-foreground">Ces fiches proviennent d’une ancienne liste de l’application, sans source vérifiée. Préférez la recherche BoardGameGeek quand elle fonctionne.</p>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <label htmlFor="legacy" className="sr-only">Jeu de l’ancien catalogue</label>
+            <select id="legacy" className="native-select" value={legacyId} onChange={(e) => setLegacyId(e.target.value)}>
+              <option value="">Sélectionnez un jeu…</option>
+              {[...gameCatalog].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map((g) => (
+                <option key={g.id} value={g.id} disabled={ownedIds.has(g.id)}>{g.name}{ownedIds.has(g.id) ? ' (déjà ajouté)' : ''}</option>
+              ))}
+            </select>
+            <Button disabled={!legacyId || add.isLoading} onClick={() => {
+              const legacy = gameCatalog.find((g) => g.id === legacyId);
+              if (legacy) add.mutate(catalogGameToInput(legacy), { onSuccess: () => setLegacyId('') });
+            }}>Ajouter</Button>
+          </div>
+        </details>
+      </section>
+
+      {collection.isLoading ? <LoadingState /> : collection.isError ? <ErrorState error={collection.error} onRetry={() => void collection.refetch()} /> : copies.length === 0 ? (
+        <EmptyState icon={<Library className="h-6 w-6" />} title="Votre collection est vide">Recherchez un de vos jeux ci-dessus pour le proposer au groupe.</EmptyState>
+      ) : (
+        <>
+          <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground"><Check className="h-4 w-4" aria-hidden="true" />{copies.length} jeu{copies.length > 1 ? 'x' : ''} dans votre collection</p>
+          <ul className="space-y-4">
+            {copies.map(({ game, copy }) => <CopyCard key={copy.id} gameId={game.id} gameName={game.name} imageUrl={game.thumbnailUrl ?? game.imageUrl} copy={copy} />)}
+          </ul>
+        </>
+      )}
     </div>
   );
 };
