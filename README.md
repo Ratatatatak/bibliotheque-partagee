@@ -33,8 +33,10 @@ Site en production : https://bibliotheque-partagee-tau.vercel.app (hébergement 
 - Retirer un jeu de sa collection l'**archive** : il disparaît du catalogue, mais l'historique des
   prêts passés reste lisible. Un jeu prêté ne peut pas être retiré.
 
-Fonctions complémentaires : favoris, filtres, parties prévues/jouées, page membres, échanges
-définitifs de propriété (mode Supabase uniquement).
+Fonctions complémentaires : favoris, filtres, liste d'attente (« me prévenir quand il revient »),
+import de la collection BoardGameGeek d'un membre, parties prévues/jouées, page membres, administration
+des fiches (fusion des doublons, correction, mise à jour depuis BGG), échanges définitifs de propriété
+(mode Supabase uniquement).
 
 ## Lancer le projet
 
@@ -96,6 +98,7 @@ Supabase ou `supabase db push`). Toutes sont non destructives ; la `010` est rej
 | 009 | Note BGG |
 | **010** | **Intégrité des prêts et confidentialité** (voir ci-dessous) — prérequis : 001, 002, 003 |
 | 011 | Règles renforcées des échanges — uniquement si 006 est appliquée |
+| 012 | Liste d'attente, fusion et suppression de fiches (administrateurs), correctif pour nommer un administrateur depuis l'éditeur SQL |
 
 La migration **010** :
 

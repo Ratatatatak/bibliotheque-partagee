@@ -6,6 +6,7 @@ import { GameImage } from '@/components/library/GameImage';
 import { CopyList } from '@/components/library/CopyList';
 import { EmptyState, ErrorState, LoadingState } from '@/components/library/PageState';
 import { useBorrowDialogs } from '@/components/library/useBorrowDialogs';
+import { WaitlistButton } from '@/components/library/WaitlistButton';
 import { formatDate } from '@/domain/dates';
 import { Button } from '@/components/ui/button';
 
@@ -111,6 +112,7 @@ const GameDetail = () => {
           <div className="mt-4">
             <CopyList copies={g.copies} myPendingCopyIds={borrow.myPendingCopyIds} onRequest={borrow.openRequest(g.name)} onExchange={borrow.openExchange?.(g.name)} />
           </div>
+          <div className="mt-4"><WaitlistButton game={g} /></div>
         </div>
 
         <div className="border-t border-gris-pierre-chaude p-6 sm:p-8">

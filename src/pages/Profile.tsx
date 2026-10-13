@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
-import { useCollection, useMyActivity } from '@/hooks/useLibrary';
+import { useCollection, useIsAdmin, useMyActivity } from '@/hooks/useLibrary';
 import { PageHeader } from '@/components/library/PageState';
 import { errorMessage } from '@/data/repository';
 
@@ -49,6 +49,7 @@ const PasswordSection = () => {
 const Profile = () => {
   const { user, signOut, updateProfile, mode } = useAuth();
   const collection = useCollection();
+  const admin = useIsAdmin();
   const activity = useMyActivity();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.displayName ?? '');
@@ -108,7 +109,10 @@ const Profile = () => {
         </div>
       </section>
 
-      <Button variant="outline" onClick={() => void signOut()}>Se déconnecter</Button>
+      <div className="flex flex-wrap gap-3">
+        {admin.data && <Button asChild variant="outline"><Link to="/admin">Administration des fiches</Link></Button>}
+        <Button variant="outline" onClick={() => void signOut()}>Se déconnecter</Button>
+      </div>
     </div>
   );
 };

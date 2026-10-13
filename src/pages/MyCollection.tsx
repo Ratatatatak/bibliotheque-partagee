@@ -9,6 +9,7 @@ import { bggService } from '@/lib/bggService';
 import { bggDetailsToGameInput, type BGGGameDetails, type BGGSearchResult } from '@/integrations/bgg/client';
 import { catalogGameToInput, gameCatalog } from '@/data/gameCatalog';
 import { GameImage } from '@/components/library/GameImage';
+import { BggCollectionImport } from '@/components/library/BggCollectionImport';
 import { CopyStatusBadge } from '@/components/library/CopyStatusBadge';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/library/PageState';
 import { errorMessage } from '@/data/repository';
@@ -127,7 +128,7 @@ const BggSearch = ({ ownedIds, onAdd, adding }: { ownedIds: Set<string>; onAdd: 
   );
 };
 
-const CopyCard = ({ gameId, gameName, imageUrl, copy }: { gameId: string; gameName: string; imageUrl: string | null; copy: CopyView }) => {
+const CopyCard = ({ gameId, gameName, imageUrl, copy, waitingCount }: { gameId: string; gameName: string; imageUrl: string | null; copy: CopyView; waitingCount: number }) => {
   const [notes, setNotes] = useState(copy.notes ?? '');
   const [editing, setEditing] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -144,6 +145,7 @@ const CopyCard = ({ gameId, gameName, imageUrl, copy }: { gameId: string; gameNa
         <h2 className="font-display text-lg font-bold text-brun-cafe-doux"><Link to={`/game/${encodeURIComponent(gameId)}`} className="hover:underline">{gameName}</Link></h2>
         <CopyStatusBadge copy={copy} />
         {copy.activeLoan && <p className="text-sm text-brun-cafe-doux">Prêté à <strong>{memberLabel(copy.activeLoan.borrower)}</strong> depuis le {formatDate(copy.activeLoan.startDate)}. <Link to="/my-loans" className="font-semibold text-bleu-canard-profond underline">Gérer le prêt</Link></p>}
+        {copy.status === 'lent' && waitingCount > 0 && <p className="text-sm text-muted-foreground">{waitingCount} membre{waitingCount > 1 ? 's attendent' : ' attend'} ce jeu après ce prêt.</p>}
         {copy.pendingRequestCount > 0 && <p className="text-sm font-semibold text-brun-cafe-doux">{copy.pendingRequestCount} demande{copy.pendingRequestCount > 1 ? 's' : ''} en attente — <Link to="/my-loans" className="text-bleu-canard-profond underline">répondre</Link></p>}
         {editing ? (
           <div className="space-y-2">
@@ -195,6 +197,7 @@ const MyCollection = () => {
       <section aria-labelledby="add-title" className="surface mb-10 p-4 sm:p-6">
         <h2 id="add-title" className="mb-4 font-display text-xl font-bold text-brun-cafe-doux">Ajouter un jeu</h2>
         <BggSearch ownedIds={ownedIds} adding={add.isLoading} onAdd={(input) => add.mutate(input)} />
+        <BggCollectionImport ownedIds={ownedIds} />
         <details className="mt-6 rounded-lg border border-dashed border-gris-pierre-chaude p-4">
           <summary className="cursor-pointer text-sm font-semibold text-brun-cafe-doux">BoardGameGeek indisponible ? Choisir dans l’ancien catalogue (non vérifié)</summary>
           <p className="mt-2 text-sm text-muted-foreground">Ces fiches proviennent d’une ancienne liste de l’application, sans source vérifiée. Préférez la recherche BoardGameGeek quand elle fonctionne.</p>
@@ -220,7 +223,7 @@ const MyCollection = () => {
         <>
           <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground"><Check className="h-4 w-4" aria-hidden="true" />{copies.length} jeu{copies.length > 1 ? 'x' : ''} dans votre collection</p>
           <ul className="space-y-4">
-            {copies.map(({ game, copy }) => <CopyCard key={copy.id} gameId={game.id} gameName={game.name} imageUrl={game.thumbnailUrl ?? game.imageUrl} copy={copy} />)}
+            {copies.map(({ game, copy }) => <CopyCard key={copy.id} gameId={game.id} gameName={game.name} imageUrl={game.thumbnailUrl ?? game.imageUrl} copy={copy} waitingCount={game.waitingMembers.length} />)}
           </ul>
         </>
       )}

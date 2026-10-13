@@ -18,8 +18,9 @@ import {
   type Loan,
   type LoanRequest,
   type Member,
+  type WaitlistEntry,
 } from '@/domain/types';
-import { buildCopyViews, buildGamesWithCopies, buildLoanViews, buildRequestViews, buildSessionViews, type Snapshot } from '@/domain/views';
+import { buildGamesWithCopies, buildLoanViews, buildRequestViews, buildSessionViews, type Snapshot } from '@/domain/views';
 import type { ExchangeRequestView, LibraryRepository } from './repository';
 
 type Row = Record<string, unknown>;
@@ -38,7 +39,7 @@ const isMissingSchema = (error: PostgrestError | null) =>
 
 const fail = (error: PostgrestError | null, context: string): never => {
   if (isMissingSchema(error)) {
-    throw new DomainError(`${context} : la base Supabase n’est pas à jour. Appliquez la migration 010_loan_integrity_and_privacy.sql.`);
+    throw new DomainError(`${context} : la base Supabase n’est pas à jour (migration manquante dans supabase/migrations).`);
   }
   // Les fonctions SQL renvoient des messages en français destinés à l'utilisateur.
   throw new DomainError(error?.message ? `${context} : ${error.message}` : context);
@@ -77,6 +78,7 @@ const mapGame = (row: Row, sources: GameSource[] = []): Game => {
     ratingsCount: num(row.ratings_count),
     origin: (str(row.data_origin) as Game['origin']) ?? (bggId ? 'bgg' : 'legacy-catalog'),
     sources,
+    mergedInto: str(row.merged_into),
   };
 };
 
@@ -138,14 +140,25 @@ async function fetchGroupActiveLoans(): Promise<Loan[]> {
   return (fallback.data ?? []).map((row) => mapLoan(row as Row));
 }
 
+/** Liste d'attente du groupe (vide si la migration 012 n'est pas encore appliquée). */
+async function fetchWaitlist(): Promise<WaitlistEntry[]> {
+  const { data, error } = await requireSupabase().from('game_waitlist').select('*');
+  if (error) {
+    if (isMissingSchema(error)) return [];
+    fail(error, 'Lecture de la liste d’attente impossible');
+  }
+  return (data ?? []).map((row: Row) => ({ memberId: String(row.user_id), gameId: String(row.game_id), createdAt: String(row.created_at ?? '') }));
+}
+
 async function fetchSnapshot(): Promise<Snapshot> {
   const client = requireSupabase();
-  const [members, games, copies, requests, loans] = await Promise.all([
+  const [members, games, copies, requests, loans, waitlist] = await Promise.all([
     fetchMembers(),
     client.from('games').select('*'),
     client.from('game_copies').select('*'),
     client.from('loan_requests').select('*'),
     fetchGroupActiveLoans(),
+    fetchWaitlist(),
   ]);
   if (games.error) fail(games.error, 'Lecture du catalogue impossible');
   if (copies.error) fail(copies.error, 'Lecture des exemplaires impossible');
@@ -156,6 +169,7 @@ async function fetchSnapshot(): Promise<Snapshot> {
     copies: (copies.data ?? []).map((row) => mapCopy(row as Row)),
     requests: (requests.data ?? []).map((row) => mapRequest(row as Row)),
     loans,
+    waitlist,
   };
 }
 
@@ -197,20 +211,22 @@ export const supabaseRepository: LibraryRepository = {
     return buildGamesWithCopies(await fetchSnapshot());
   },
 
-  async getGame(gameId) {
+  async getGame(requestedId) {
     const client = requireSupabase();
     const snapshot = await fetchSnapshot();
-    const gameRow = snapshot.games.find((game) => game.id === gameId);
-    if (!gameRow) return null;
+    // Une fiche fusionnée renvoie vers la fiche conservée.
+    const gameId = snapshot.games.find((game) => game.id === requestedId)?.mergedInto ?? requestedId;
+    const game = buildGamesWithCopies(snapshot, { includeGamesWithoutCopies: true }).find((item) => item.id === gameId);
+    if (!game) return null;
     const { data: sourceRows, error } = await client.from('game_sources').select('*').eq('game_id', gameId);
     if (error && !isMissingSchema(error)) fail(error, 'Lecture des sources impossible');
     const sources: GameSource[] = (sourceRows ?? []).map((row: Row) => ({
       name: String(row.source_name ?? ''), url: String(row.source_url ?? ''), retrievedAt: String(row.retrieved_at ?? ''),
     }));
-    if (!sources.length && gameRow.bggId) {
-      sources.push({ name: 'BoardGameGeek', url: `https://boardgamegeek.com/boardgame/${gameRow.bggId}`, retrievedAt: '' });
+    if (!sources.length && game.bggId) {
+      sources.push({ name: 'BoardGameGeek', url: `https://boardgamegeek.com/boardgame/${game.bggId}`, retrievedAt: '' });
     }
-    return { ...gameRow, sources, copies: buildCopyViews(snapshot).filter((copy) => copy.gameId === gameId) };
+    return { ...game, sources };
   },
 
   async listCollection(memberId) {
@@ -263,11 +279,17 @@ export const supabaseRepository: LibraryRepository = {
 
   removeCopy: (_actorId, copyId) => rpc('archive_game_copy', { target_copy_id: copyId }, 'Retrait impossible'),
 
-  createLoanRequest: (_actorId, input) => rpc('create_loan_request', {
-    requested_copy_id: input.copyId,
-    requested_return_date: input.requestedReturnDate,
-    request_message: input.message?.trim() || null,
-  }, 'Demande impossible'),
+  async createLoanRequest(actorId, input) {
+    await rpc('create_loan_request', {
+      requested_copy_id: input.copyId,
+      requested_return_date: input.requestedReturnDate,
+      request_message: input.message?.trim() || null,
+    }, 'Demande impossible');
+    // La demande remplace l'inscription sur la liste d'attente de ce jeu (sans gravité si elle échoue).
+    const client = requireSupabase();
+    const { data: copy } = await client.from('game_copies').select('game_id').eq('id', input.copyId).maybeSingle();
+    if (copy) await client.from('game_waitlist').delete().eq('user_id', actorId).eq('game_id', (copy as Row).game_id);
+  },
   cancelLoanRequest: (_a, requestId) => rpc('cancel_loan_request', { request_id: requestId }, 'Annulation impossible'),
   refuseLoanRequest: (_a, requestId) => rpc('refuse_loan_request', { request_id: requestId }, 'Refus impossible'),
   acceptLoanRequest: (_a, requestId) => rpc('accept_loan_request', { request_id: requestId }, 'Acceptation impossible'),
@@ -293,6 +315,37 @@ export const supabaseRepository: LibraryRepository = {
     };
     return { requests: buildRequestViews(snapshot), loans: buildLoanViews(snapshot) };
   },
+
+  async joinWaitlist(actorId, gameId) {
+    const { error } = await requireSupabase().from('game_waitlist').insert({ user_id: actorId, game_id: gameId });
+    if (error && error.code !== '23505') fail(error, 'Inscription sur la liste d’attente impossible');
+  },
+  async leaveWaitlist(actorId, gameId) {
+    const { error } = await requireSupabase().from('game_waitlist').delete().eq('user_id', actorId).eq('game_id', gameId);
+    if (error && !isMissingSchema(error)) fail(error, 'Désinscription impossible');
+  },
+
+  async isAdmin() {
+    const { data, error } = await requireSupabase().rpc('is_admin');
+    if (error) return false;
+    return data === true;
+  },
+  async listAllGames() {
+    return buildGamesWithCopies(await fetchSnapshot(), { includeGamesWithoutCopies: true });
+  },
+  mergeGames: (_actorId, sourceId, targetId) => rpc('merge_games', { source_game_id: sourceId, target_game_id: targetId }, 'Fusion impossible'),
+  async updateGameDetails(_actorId, gameId, input) {
+    const { id: _ignored, ...row } = gameToRow(input, gameId);
+    const { data, error } = await requireSupabase().from('games').update(row).eq('id', gameId).select('id');
+    if (error) fail(error, 'Mise à jour de la fiche impossible');
+    if (!data?.length) throw new DomainError('Mise à jour refusée : seuls les administrateurs peuvent modifier une fiche.');
+    if (input.origin === 'bgg' && input.sources.length) {
+      await requireSupabase().from('game_sources').insert(input.sources.map((source) => ({
+        game_id: gameId, source_name: source.name, source_url: source.url, source_type: 'external', retrieved_at: source.retrievedAt || new Date().toISOString(),
+      })));
+    }
+  },
+  deleteGame: (_actorId, gameId) => rpc('delete_unused_game', { target_game_id: gameId }, 'Suppression impossible'),
 
   async listFavorites(actorId) {
     const { data, error } = await requireSupabase().from('favorites').select('game_id').eq('user_id', actorId);

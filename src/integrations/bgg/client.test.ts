@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { bggDetailsToGameInput, BGGUnavailableError, getBGGGameDetails, rankBGGSearchResults, searchBGGGames } from './client';
+import { bggDetailsToGameInput, BGGUnavailableError, getBGGGameDetails, getBGGGamesDetails, getBGGOwnedCollection, rankBGGSearchResults, searchBGGGames } from './client';
 
 // Réponses XML FICTIVES, construites pour tester l'analyse (structure conforme à l'API XML2 de BGG).
 const SEARCH_XML = `<?xml version="1.0" encoding="utf-8"?><items total="3">
@@ -69,5 +69,42 @@ describe('client BoardGameGeek', () => {
     const spy = mockFetch(200, THING_XML);
     expect(await getBGGGameDetails('catan')).toBeNull();
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+const COLLECTION_BASE = `<items totalitems="2"><item objecttype="thing" objectid="100" subtype="boardgame"><name sortindex="1">Exemple</name><yearpublished>2019</yearpublished><thumbnail>https://example.test/t.jpg</thumbnail></item><item objecttype="thing" objectid="200" subtype="boardgame"><name sortindex="1">Autre jeu</name></item></items>`;
+const COLLECTION_EXP = `<items totalitems="1"><item objecttype="thing" objectid="900" subtype="boardgameexpansion"><name sortindex="1">Exemple : extension</name></item></items>`;
+
+describe('import de collection BoardGameGeek', () => {
+  it('attend la préparation (202), sépare jeux de base et extensions', async () => {
+    let call = 0;
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      call += 1;
+      if (call === 1) return new Response('', { status: 202 });
+      return new Response(String(input).includes('excludesubtype') ? COLLECTION_BASE : COLLECTION_EXP, { status: 200 });
+    });
+    const promise = getBGGOwnedCollection('pseudo');
+    await vi.runAllTimersAsync();
+    const items = await promise;
+    vi.useRealTimers();
+    expect(items.map((i) => [i.id, i.isExpansion])).toEqual([['200', false], ['100', false], ['900', true]]);
+  });
+
+  it('signale un pseudo inexistant', async () => {
+    mockFetch(200, '<errors><error><message>Invalid username specified</message></error></errors>');
+    await expect(getBGGOwnedCollection('inconnu')).rejects.toThrow('n’existe pas');
+  });
+
+  it('récupère les fiches par lots de 20', async () => {
+    vi.useFakeTimers();
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(THING_XML, { status: 200 }));
+    const ids = Array.from({ length: 25 }, (_, i) => String(i + 1));
+    const promise = getBGGGamesDetails(ids);
+    await vi.runAllTimersAsync();
+    await promise;
+    vi.useRealTimers();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(decodeURIComponent(String(spy.mock.calls[1][0]))).toContain('id=21,22,23,24,25');
   });
 });

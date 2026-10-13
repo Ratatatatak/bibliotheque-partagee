@@ -29,6 +29,8 @@ const Index = () => {
   const toAnswer = (activity.data?.requests ?? []).filter((r) => r.status === 'pending' && r.ownerId === user?.id);
   const lateOrSoon = (activity.data?.loans ?? []).filter((l) => l.status === 'active' && daysUntil(l.expectedReturnDate) <= 2);
   const nextSession = (sessions.data ?? []).find((s) => s.status === 'planned');
+  // Liste d'attente : jeux attendus qui ont de nouveau un exemplaire disponible.
+  const backInStock = allGames.filter((g) => g.waitingMembers.some((m) => m.id === user?.id) && g.copies.some((c) => c.status === 'available'));
   const recent = [...allGames].sort((a, b) => {
     const latest = (g: typeof a) => g.copies.reduce((max, c) => (c.createdAt > max ? c.createdAt : max), '');
     return latest(b).localeCompare(latest(a));
@@ -63,7 +65,7 @@ const Index = () => {
       </section>
 
       <div className="page-container space-y-12">
-        {(toAnswer.length > 0 || lateOrSoon.length > 0 || nextSession) && (
+        {(toAnswer.length > 0 || lateOrSoon.length > 0 || nextSession || backInStock.length > 0) && (
           <section aria-labelledby="todo">
             <h2 id="todo" className="mb-4 flex items-center gap-2 font-display text-2xl font-bold text-brun-cafe-doux"><Bell className="h-5 w-5" aria-hidden="true" />À suivre</h2>
             <ul className="space-y-3">
@@ -82,6 +84,12 @@ const Index = () => {
                   </Link></li>
                 );
               })}
+              {backInStock.map((game) => (
+                <li key={game.id}><Link to={`/game/${encodeURIComponent(game.id)}`} className="surface flex min-h-12 items-center justify-between gap-4 border-vert-sauge-doux p-4 text-brun-cafe-doux hover:shadow-md">
+                  <span><strong>{game.name}</strong> est de nouveau disponible : vous pouvez le demander.</span>
+                  <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+                </Link></li>
+              ))}
               {nextSession && (
                 <li><Link to="/sessions" className="surface flex min-h-12 items-center justify-between gap-4 p-4 text-brun-cafe-doux hover:shadow-md">
                   <span>Prochaine partie : <strong>{nextSession.game.name}</strong> le {formatDate(nextSession.date)}{nextSession.time ? ` à ${nextSession.time}` : ''}</span>

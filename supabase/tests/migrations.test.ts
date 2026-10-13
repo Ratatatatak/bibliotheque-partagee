@@ -218,3 +218,53 @@ describe('base partiellement migrée', () => {
     await partial.close();
   });
 });
+
+describe('liste d’attente et administration des fiches (012)', () => {
+  beforeAll(async () => {
+    // Comme dans l'éditeur SQL de Supabase : aucun membre connecté.
+    await db.exec(`RESET ROLE; SELECT set_config('request.jwt.claim.sub', '', false); UPDATE public.profiles SET role = 'admin' WHERE id = '${ALICE}'`);
+    // Un membre ne peut pas s'attribuer le rôle lui-même.
+    await expectError(as(BRUNO, `UPDATE public.profiles SET role = 'admin' WHERE id = $1`, [BRUNO]), /administrateur/);
+    await as(BRUNO, `INSERT INTO public.games (id, name, min_players, max_players, min_age, data_origin) VALUES ('kingdomino', 'Kingdomino', 2, 4, 10, 'legacy-catalog')`);
+    await as(BRUNO, `INSERT INTO public.games (id, name, bgg_id, data_origin) VALUES ('204583', 'Kingdomino', '204583', 'bgg')`);
+    await as(BRUNO, `INSERT INTO public.game_copies (game_id, owner_id) VALUES ('kingdomino', $1)`, [BRUNO]);
+    await as(CHLOE, `INSERT INTO public.game_copies (game_id, owner_id) VALUES ('kingdomino', $1)`, [CHLOE]);
+    await as(CHLOE, `INSERT INTO public.game_copies (game_id, owner_id) VALUES ('204583', $1)`, [CHLOE]);
+    await as(ALICE, `INSERT INTO public.favorites (user_id, game_id) VALUES ($1, 'kingdomino')`, [ALICE]);
+  });
+
+  it('un membre s’inscrit sur la liste d’attente, mais pas pour un jeu qu’il possède', async () => {
+    await as(ALICE, `INSERT INTO public.game_waitlist (user_id, game_id) VALUES ($1, 'kingdomino')`, [ALICE]);
+    await expectError(as(BRUNO, `INSERT INTO public.game_waitlist (user_id, game_id) VALUES ($1, 'kingdomino')`, [BRUNO]), /row-level security/i);
+    await expectError(as(BRUNO, `INSERT INTO public.game_waitlist (user_id, game_id) VALUES ($1, 'kingdomino')`, [ALICE]), /row-level security/i);
+    expect((await as(CHLOE, `SELECT user_id FROM public.game_waitlist`)).map((r) => r.user_id)).toEqual([ALICE]);
+  });
+
+  it('seul un administrateur fusionne ; doublons archivés, exemplaires et favoris déplacés', async () => {
+    await expectError(as(BRUNO, `SELECT public.merge_games('kingdomino', '204583')`), /administrateurs/);
+    await as(ALICE, `SELECT public.merge_games('kingdomino', '204583')`);
+    const copies = await as(ALICE, `SELECT owner_id, game_id, archived_at IS NOT NULL AS archived FROM public.game_copies WHERE game_id IN ('kingdomino', '204583') ORDER BY owner_id, archived`);
+    expect(copies).toEqual([
+      { owner_id: BRUNO, game_id: '204583', archived: false },
+      { owner_id: CHLOE, game_id: '204583', archived: false },
+      { owner_id: CHLOE, game_id: 'kingdomino', archived: true },
+    ]);
+    expect((await as(ALICE, `SELECT game_id FROM public.favorites WHERE user_id = $1`, [ALICE])).map((r) => r.game_id)).toEqual(['204583']);
+    expect((await as(ALICE, `SELECT game_id FROM public.game_waitlist`)).map((r) => r.game_id)).toEqual(['204583']);
+    expect((await as(ALICE, `SELECT merged_into FROM public.games WHERE id = 'kingdomino'`))[0].merged_into).toBe('204583');
+    await expectError(as(ALICE, `SELECT public.merge_games('kingdomino', '204583')`), /déjà été fusionnée/);
+  });
+
+  it('une fiche utilisée ne peut pas être supprimée, une fiche inutilisée oui', async () => {
+    await expectError(as(ALICE, `SELECT public.delete_unused_game('204583')`), /utilisée/);
+    await as(BRUNO, `INSERT INTO public.games (id, name) VALUES ('vide', 'Fiche vide')`);
+    await expectError(as(BRUNO, `SELECT public.delete_unused_game('vide')`), /administrateurs/);
+    await as(ALICE, `SELECT public.delete_unused_game('vide')`);
+    expect(await as(ALICE, `SELECT id FROM public.games WHERE id = 'vide'`)).toEqual([]);
+  });
+
+  it('un administrateur peut corriger une fiche, pas un simple membre', async () => {
+    expect(await as(BRUNO, `UPDATE public.games SET name = 'Piraté' WHERE id = '204583' RETURNING id`)).toEqual([]);
+    expect((await as(ALICE, `UPDATE public.games SET name = 'Kingdomino (2016)' WHERE id = '204583' RETURNING name`))[0].name).toBe('Kingdomino (2016)');
+  });
+});

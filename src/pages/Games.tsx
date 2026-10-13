@@ -8,6 +8,7 @@ import { GameImage } from '@/components/library/GameImage';
 import { CopyList } from '@/components/library/CopyList';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/library/PageState';
 import { useBorrowDialogs } from '@/components/library/useBorrowDialogs';
+import { WaitlistButton } from '@/components/library/WaitlistButton';
 import type { GameWithCopies } from '@/domain/types';
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -158,6 +159,7 @@ const Games = () => {
                     </div>
                     <div className="mt-auto border-t border-gris-pierre-chaude p-4 sm:p-6">
                       <CopyList compact copies={game.copies} myPendingCopyIds={borrow.myPendingCopyIds} onRequest={borrow.openRequest(game.name)} onExchange={borrow.openExchange?.(game.name)} />
+                      <div className="mt-3"><WaitlistButton game={game} /></div>
                     </div>
                   </li>
                 );

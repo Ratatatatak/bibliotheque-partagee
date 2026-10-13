@@ -22,6 +22,8 @@ export const libraryKeys = {
   favorites: (memberId: string) => [ROOT, 'favorites', memberId] as const,
   sessions: [ROOT, 'sessions'] as const,
   exchanges: (memberId: string) => [ROOT, 'exchanges', memberId] as const,
+  allGames: [ROOT, 'all-games'] as const,
+  isAdmin: (memberId: string) => [ROOT, 'is-admin', memberId] as const,
 };
 
 /** En mode local, rafraîchit l'affichage quand les données changent (y compris dans un autre onglet). */
@@ -51,6 +53,12 @@ export const useFavorites = () => {
   return useQuery({ queryKey: libraryKeys.favorites(user?.id ?? ''), queryFn: () => repository.listFavorites(user!.id), enabled: Boolean(user) });
 };
 export const useSessions = () => useQuery({ queryKey: libraryKeys.sessions, queryFn: () => repository.listSessions() });
+export const useAllGames = (enabled = true) => useQuery({ queryKey: libraryKeys.allGames, queryFn: () => repository.listAllGames(), enabled });
+export const useIsAdmin = () => {
+  const { user } = useAuth();
+  return useQuery({ queryKey: libraryKeys.isAdmin(user?.id ?? ''), queryFn: () => repository.isAdmin(user!.id), enabled: Boolean(user), staleTime: 300_000 });
+};
+
 export const useExchanges = () => {
   const { user } = useAuth();
   return useQuery({

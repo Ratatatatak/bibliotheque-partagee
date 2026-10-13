@@ -40,7 +40,7 @@ describe('fonctions serveur', () => {
     await bgg({ url: '/api/bgg/search?query=azul', headers: { authorization: 'Bearer faux' } }, r);
     expect(r.statusCode).toBe(401);
     const r2 = res();
-    await bgg({ url: '/api/bgg/collection?username=x', headers: {} }, r2);
+    await bgg({ url: '/api/bgg/plays?username=x', headers: {} }, r2);
     expect(r2.statusCode).toBe(404);
   });
 

@@ -175,3 +175,43 @@ describe('historique', () => {
     expect(() => addCopy(removed, alice.id, history.game.id, clock)).not.toThrow();
   });
 });
+
+describe('liste d’attente et fiches en double', () => {
+  it('liste d’attente : seulement si aucun exemplaire n’est disponible, retirée à la demande', async () => {
+    const { joinWaitlist } = await import('./localState');
+    const { state, alice, bruno, chloe, aliceCopy, brunoCopy, game } = setup();
+    expect(() => joinWaitlist(state, chloe.id, game.id, clock)).toThrow('disponible');
+    expect(() => joinWaitlist(state, alice.id, game.id, clock)).toThrow('possédez déjà');
+    let s = setCopyAvailability(state, bruno.id, brunoCopy.id, false, clock);
+    const r = createLoanRequest(s, chloe.id, { copyId: aliceCopy.id, requestedReturnDate: '2026-10-20' }, clock);
+    s = acceptLoanRequest(r.state, alice.id, r.request.id, clock).state;
+    const { addMember: add } = await import('./localState');
+    const d = add(s, 'Dora', null, clock);
+    s = joinWaitlist(d.state, d.member.id, game.id, clock);
+    expect(buildGamesWithCopies(s)[0].waitingMembers.map((m) => m.displayName)).toEqual(['Dora']);
+    s = setCopyAvailability(s, bruno.id, brunoCopy.id, true, clock);
+    s = createLoanRequest(s, d.member.id, { copyId: brunoCopy.id, requestedReturnDate: '2026-10-25' }, clock).state;
+    expect(s.waitlist).toEqual([]);
+  });
+
+  it('fusion : exemplaires déplacés, doublon archivé, fiche fusionnée masquée', async () => {
+    const { mergeGames, findDuplicateGames } = await import('./localState');
+    const base = setup();
+    let { state } = base;
+    const { alice, bruno, chloe } = base;
+    const legacy = upsertGame(state, { ...gameInput('Azul', ''), id: 'azul', bggId: null, origin: 'legacy-catalog', sources: [] }, clock);
+    state = legacy.state;
+    state = addCopy(state, alice.id, 'azul', clock).state; // Alice a déjà Azul sur la fiche BGG : doublon
+    state = addCopy(state, chloe.id, 'azul', clock).state;
+    const [[source, target]] = findDuplicateGames(state.games);
+    expect([source.id, target.id]).toEqual(['azul', '230802']);
+    state = mergeGames(state, 'azul', '230802', clock);
+    const [view] = buildGamesWithCopies(state);
+    expect(view.id).toBe('230802');
+    expect(view.copies.map((c) => c.owner.displayName)).toEqual(['Alice', 'Bruno', 'Chloé']);
+    expect(state.copies.filter((c) => c.archivedAt)).toHaveLength(1);
+    expect(state.games.find((g) => g.id === 'azul')!.mergedInto).toBe('230802');
+    expect(() => mergeGames(state, 'azul', '230802', clock)).toThrow('déjà été fusionnée');
+    expect(bruno).toBeDefined();
+  });
+});

@@ -16,6 +16,7 @@ import {
   type LoanRequest,
   type Member,
   type MemberId,
+  type WaitlistEntry,
 } from './types';
 import { isValidIsoDate, todayIso } from './dates';
 
@@ -30,6 +31,7 @@ export type LocalState = {
   loans: Loan[];
   favorites: { memberId: MemberId; gameId: string }[];
   sessions: GameSession[];
+  waitlist: WaitlistEntry[];
 };
 
 export const emptyLocalState = (): LocalState => ({
@@ -41,6 +43,7 @@ export const emptyLocalState = (): LocalState => ({
   loans: [],
   favorites: [],
   sessions: [],
+  waitlist: [],
 });
 
 export type Clock = { now: () => Date; newId: (prefix: string) => string };
@@ -200,7 +203,9 @@ export const createLoanRequest = (
     createdAt: clock.now().toISOString(),
     respondedAt: null,
   };
-  return { state: { ...state, requests: [...state.requests, request] }, request };
+  // Une demande envoyée remplace l'inscription sur la liste d'attente de ce jeu.
+  const waitlist = state.waitlist.filter((entry) => !(entry.memberId === actorId && entry.gameId === copy.gameId));
+  return { state: { ...state, waitlist, requests: [...state.requests, request] }, request };
 };
 
 const requirePendingRequest = (state: LocalState, requestId: string) => {
@@ -343,4 +348,122 @@ export const setSessionStatus = (state: LocalState, actorId: MemberId, sessionId
   if (!session) throw new DomainError('Partie introuvable.');
   if (session.creatorId !== actorId) throw new DomainError('Seule la personne qui a organisé la partie peut la modifier.');
   return { ...state, sessions: state.sessions.map((item) => (item.id === sessionId ? { ...item, status } : item)) };
+};
+
+// ---------------------------------------------------------------------------
+// Liste d'attente : « me prévenir quand un exemplaire se libère »
+// ---------------------------------------------------------------------------
+
+export const joinWaitlist = (state: LocalState, actorId: MemberId, gameId: string, clock: Clock = defaultClock): LocalState => {
+  requireMember(state, actorId);
+  const copies = state.copies.filter((copy) => copy.gameId === gameId && !copy.archivedAt);
+  if (!state.games.some((game) => game.id === gameId) || copies.length === 0) throw new DomainError('Ce jeu n’est possédé par aucun membre.');
+  if (copies.some((copy) => copy.ownerId === actorId)) throw new DomainError('Vous possédez déjà ce jeu.');
+  if (copies.some((copy) => copy.status === 'available' && !activeLoanForCopy(state, copy.id))) {
+    throw new DomainError('Un exemplaire est disponible : vous pouvez le demander directement.');
+  }
+  if (state.waitlist.some((entry) => entry.memberId === actorId && entry.gameId === gameId)) return state;
+  return { ...state, waitlist: [...state.waitlist, { memberId: actorId, gameId, createdAt: clock.now().toISOString() }] };
+};
+
+export const leaveWaitlist = (state: LocalState, actorId: MemberId, gameId: string): LocalState => ({
+  ...state,
+  waitlist: state.waitlist.filter((entry) => !(entry.memberId === actorId && entry.gameId === gameId)),
+});
+
+// ---------------------------------------------------------------------------
+// Administration des fiches : fusion des doublons, correction, suppression
+// ---------------------------------------------------------------------------
+
+/**
+ * Fusionne la fiche `sourceId` dans `targetId` (un même jeu saisi deux fois).
+ * Les exemplaires, favoris, parties et inscriptions d'attente passent sur la
+ * fiche conservée. Si un membre possède déjà le jeu sur la fiche conservée, son
+ * exemplaire en double est archivé. La fiche fusionnée n'est pas effacée : elle
+ * reste lisible dans l'historique et redirige vers la fiche conservée.
+ */
+export const mergeGames = (state: LocalState, sourceId: string, targetId: string, clock: Clock = defaultClock): LocalState => {
+  if (sourceId === targetId) throw new DomainError('Choisissez deux fiches différentes.');
+  const source = state.games.find((game) => game.id === sourceId);
+  const target = state.games.find((game) => game.id === targetId);
+  if (!source || !target) throw new DomainError('Fiche introuvable.');
+  if (source.mergedInto || target.mergedInto) throw new DomainError('Une de ces fiches a déjà été fusionnée.');
+  const now = clock.now().toISOString();
+  const ownersOnTarget = new Set(state.copies.filter((c) => c.gameId === targetId && !c.archivedAt).map((c) => c.ownerId));
+  const archivedIds = new Set<string>();
+  const copies = state.copies.map((copy) => {
+    if (copy.gameId !== sourceId || copy.archivedAt) return copy;
+    if (ownersOnTarget.has(copy.ownerId)) {
+      if (activeLoanForCopy(state, copy.id)) {
+        throw new DomainError('Un exemplaire en double est actuellement prêté : attendez son retour avant de fusionner.');
+      }
+      archivedIds.add(copy.id);
+      return { ...copy, status: 'unavailable' as const, archivedAt: now, notes: copy.notes ?? 'Doublon archivé lors d’une fusion de fiches.' };
+    }
+    return { ...copy, gameId: targetId };
+  });
+  const dedupe = <T extends { gameId: string }>(items: T[], key: (item: T) => string) => {
+    const seen = new Set<string>();
+    return items
+      .map((item) => (item.gameId === sourceId ? { ...item, gameId: targetId } : item))
+      .filter((item) => {
+        const k = key(item);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+  };
+  return {
+    ...state,
+    copies,
+    requests: state.requests.map((r) => (archivedIds.has(r.copyId) && r.status === 'pending' ? { ...r, status: 'cancelled' as const, respondedAt: now } : r)),
+    favorites: dedupe(state.favorites, (f) => `${f.memberId}|${f.gameId}`),
+    waitlist: dedupe(state.waitlist, (w) => `${w.memberId}|${w.gameId}`),
+    sessions: state.sessions.map((s) => (s.gameId === sourceId ? { ...s, gameId: targetId } : s)),
+    games: state.games.map((game) => (game.id === sourceId ? { ...game, mergedInto: targetId } : game)),
+  };
+};
+
+/** Remplace les informations descriptives d'une fiche (correction ou mise à jour depuis BGG). */
+export const updateGameDetails = (state: LocalState, gameId: string, input: GameInput): LocalState => {
+  const existing = state.games.find((game) => game.id === gameId);
+  if (!existing) throw new DomainError('Fiche introuvable.');
+  if (!input.name.trim()) throw new DomainError('Le nom du jeu est obligatoire.');
+  const updated: Game = { ...input, id: gameId, mergedInto: existing.mergedInto ?? null };
+  return { ...state, games: state.games.map((game) => (game.id === gameId ? updated : game)) };
+};
+
+/** Supprime une fiche qui n'a jamais eu d'exemplaire ni de partie. */
+export const deleteGame = (state: LocalState, gameId: string): LocalState => {
+  if (state.copies.some((copy) => copy.gameId === gameId) || state.sessions.some((s) => s.gameId === gameId)) {
+    throw new DomainError('Cette fiche est utilisée (exemplaires, historique ou parties) : fusionnez-la plutôt.');
+  }
+  return {
+    ...state,
+    games: state.games.filter((game) => game.id !== gameId),
+    favorites: state.favorites.filter((f) => f.gameId !== gameId),
+    waitlist: state.waitlist.filter((w) => w.gameId !== gameId),
+  };
+};
+
+/** Paires de fiches probablement identiques (même nom une fois simplifié). */
+export const findDuplicateGames = (games: Game[]): [Game, Game][] => {
+  const simplify = (name: string) => name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const active = games.filter((game) => !game.mergedInto);
+  const pairs: [Game, Game][] = [];
+  for (let i = 0; i < active.length; i += 1) {
+    for (let j = i + 1; j < active.length; j += 1) {
+      const a = active[i];
+      const b = active[j];
+      const sameName = (a.bggId !== null && a.bggId === b.bggId)
+        || simplify(a.name) === simplify(b.name)
+        || (a.originalName && simplify(a.originalName) === simplify(b.name))
+        || (b.originalName && simplify(b.originalName) === simplify(a.name));
+      if (sameName && a.isExpansion === b.isExpansion) {
+        // Paire [fiche à fusionner, fiche à conserver] : la fiche BoardGameGeek est conservée.
+        pairs.push(a.origin === 'bgg' && b.origin !== 'bgg' ? [b, a] : [a, b]);
+      }
+    }
+  }
+  return pairs;
 };
