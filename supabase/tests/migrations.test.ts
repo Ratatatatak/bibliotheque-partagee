@@ -83,9 +83,11 @@ describe('migrations', () => {
   });
 
   it('le catalogue n’est pas lisible sans être connecté', async () => {
+    await db.exec(`INSERT INTO public.games (id, name) VALUES ('lecture-test', 'Jeu de test')`);
     expect(await as(null, 'SELECT id FROM public.games')).toEqual([]);
     expect(await as(null, 'SELECT id FROM public.game_copies')).toEqual([]);
     expect((await as(ALICE, 'SELECT id FROM public.games')).length).toBeGreaterThan(0);
+    await db.exec(`DELETE FROM public.games WHERE id = 'lecture-test'`);
   });
 });
 
@@ -209,7 +211,7 @@ describe('base partiellement migrée', () => {
       await partial.exec(SUPABASE_GRANTS);
       await partial.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
     }
-    await partial.exec(`INSERT INTO auth.users (id) VALUES ('${ALICE}')`);
+    await partial.exec(`INSERT INTO auth.users (id) VALUES ('${ALICE}'); INSERT INTO public.games (id, name, min_players, max_players, min_age) VALUES ('azul', 'Azul', 2, 4, 8)`);
     await partial.exec(`SELECT set_config('request.jwt.claim.sub', '${ALICE}', false); SET ROLE authenticated;`);
     const copy = (await partial.query<{ id: string }>(`INSERT INTO public.game_copies (game_id, owner_id) VALUES ('azul', $1) RETURNING id`, [ALICE])).rows[0].id;
     await partial.query(`SELECT public.archive_game_copy($1)`, [copy]);

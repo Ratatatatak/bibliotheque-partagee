@@ -30,6 +30,8 @@ export const normalizeMessenger = (raw: string | null | undefined): string | nul
   value = value
     .replace(/^https?:\/\//i, '')
     .replace(/^(?:www\.|web\.|m\.)?(?:facebook\.com|messenger\.com)\//i, 'fb/');
+  // Adresse d'une conversation (messenger.com/t/123… ou /e2ee/t/…) : ce n'est pas un profil.
+  if (/^fb\/(e2ee\/)?t\/\d+/i.test(value) || /^fb\/e2ee\//i.test(value)) return null;
   const profileId = value.match(/^fb\/profile\.php\?id=(\d+)/i);
   if (profileId) return profileId[1];
   value = value.replace(/^fb\/(?:t\/)?/i, '').replace(/^m\.me\//i, '');

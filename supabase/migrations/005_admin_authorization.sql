@@ -38,51 +38,61 @@ CREATE TRIGGER protect_profile_role
   FOR EACH ROW EXECUTE FUNCTION public.prevent_role_escalation();
 
 -- Les administrateurs disposent de tous les droits sur les données partagées.
+DROP POLICY IF EXISTS "Admins have full access to profiles" ON public.profiles;
 CREATE POLICY "Admins have full access to profiles"
   ON public.profiles FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to games" ON public.games;
 CREATE POLICY "Admins have full access to games"
   ON public.games FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to game copies" ON public.game_copies;
 CREATE POLICY "Admins have full access to game copies"
   ON public.game_copies FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to loan requests" ON public.loan_requests;
 CREATE POLICY "Admins have full access to loan requests"
   ON public.loan_requests FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to loans" ON public.loans;
 CREATE POLICY "Admins have full access to loans"
   ON public.loans FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to game sources" ON public.game_sources;
 CREATE POLICY "Admins have full access to game sources"
   ON public.game_sources FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to favorites" ON public.favorites;
 CREATE POLICY "Admins have full access to favorites"
   ON public.favorites FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to reviews" ON public.game_reviews;
 CREATE POLICY "Admins have full access to reviews"
   ON public.game_reviews FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to game sessions" ON public.game_sessions;
 CREATE POLICY "Admins have full access to game sessions"
   ON public.game_sessions FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "Admins have full access to session players" ON public.session_players;
 CREATE POLICY "Admins have full access to session players"
   ON public.session_players FOR ALL TO authenticated
   USING (public.is_admin())

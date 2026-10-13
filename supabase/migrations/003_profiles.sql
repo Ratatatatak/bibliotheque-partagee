@@ -9,10 +9,13 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Profiles are visible to authenticated users" ON public.profiles;
 CREATE POLICY "Profiles are visible to authenticated users"
   ON public.profiles FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "Users can insert their profile" ON public.profiles;
 CREATE POLICY "Users can insert their profile"
   ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update their profile" ON public.profiles;
 CREATE POLICY "Users can update their profile"
   ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 

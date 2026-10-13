@@ -1,17 +1,20 @@
 -- Règles métier atomiques du MVP.
+ALTER TABLE public.game_copies DROP CONSTRAINT IF EXISTS game_copies_status_check;
 ALTER TABLE public.game_copies
   ADD CONSTRAINT game_copies_status_check
   CHECK (status IN ('available', 'lent', 'unavailable'));
 
+ALTER TABLE public.loan_requests DROP CONSTRAINT IF EXISTS loan_requests_status_check;
 ALTER TABLE public.loan_requests
   ADD CONSTRAINT loan_requests_status_check
   CHECK (status IN ('pending', 'accepted', 'refused', 'cancelled'));
 
+ALTER TABLE public.loans DROP CONSTRAINT IF EXISTS loans_status_check;
 ALTER TABLE public.loans
   ADD CONSTRAINT loans_status_check
   CHECK (status IN ('active', 'returned'));
 
-CREATE UNIQUE INDEX loans_one_active_copy
+CREATE UNIQUE INDEX IF NOT EXISTS loans_one_active_copy
   ON public.loans (game_copy_id)
   WHERE status = 'active';
 
