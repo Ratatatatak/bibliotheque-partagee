@@ -3,49 +3,29 @@
 @tailwind utilities;
 
 :root {
-  /* Fond principal - Papier vieilli chaleureux (inspiré du papier de jeu vieilli et du lin naturel) */
-  --background: 38 22% 92%; /* Papier lin vieilli - ton chaud et doux comme du papier de jeu premium vieilli */
-
-  /* Texte principal - Encre foncée sur papier (comme l'encre d'imprimerie traditionnelle) */
-  --foreground: 20 15% 20%; /* Brun chaud profond, presque noir - excellente lisibilité */
-
-  /* Cartes de jeux - Bois de chêne clair (comme les plateaux de jeu en bois) */
-  --card: 34 22% 90%; /* Chêne clair avec léger grain - ton chaleureux et accueillant */
-  --card-foreground: 20 15% 20%; /* Même que foreground pour lisibilité optimale */
-
-  /* Popover/Modals - Carton vieilli (comme les extensions de boîte de jeu) */
-  --popover: 36 20% 88%; /* Carton légèrement plus foncé avec texture subtile */
-  --popover-foreground: 20 15% 20%;
-
-  /* Couleur principale - Cire de scellé foncée (comme les pions de jeu en bois teinté) */
-  --primary: 20 50% 30%; /* Brun rouille profond, élégant - rappel des pions en bois teinté */
-  --primary-foreground: 36 25% 94%; /* Texte clair sur fond principal */
-
-  /* Secondaire - Ruban de lin naturel (comme les cartes ou éléments en tissu de jeu) */
-  --secondary: 36 18% 84%; /* Lin naturel très doux - comme les cartes de jeu en lin */
-  --secondary-foreground: 20 15% 20%;
-
-  /* Atténué - Ombre douce du bois (comme les ombres subtiles sur les plateaux de jeu) */
-  --muted: 32 15% 82%; /* Bois très pâle en arrière-plan - pour texte secondaire et bordures */
-  --muted-foreground: 20 10% 40%; /* Gris-brun moyen pour texte secondaire sur fond muted */
-
-  /* Accent - Touche de cire de scellé dorée (comme les accents métalliques ou en cire sur les jeux) */
-  --accent: 38 50% 45%; /* Brun cuivre doré, riche mais pas saturé - comme la cire de scellé ancienne */
-  --accent-foreground: 36 25% 94%; /* Clair sur l'accent pour excellente contraste */
-
-  /* Destructif - Rouge terreux (pas criard, comme l'oxydation naturelle du métal) */
-  --destructive: 8 50% 35%; /* Rouge brique profond - évoque l'usure naturelle plutôt que l'erreur criarde */
-  --destructive-foreground: 36 25% 94%;
-
-  /* Bordures - Légère texture de papier (comme les bords légèrement usés des cartes de jeu) */
-  --border: 32 15% 82%; /* Papier légèrement texturé - cohérent avec muted pour harmonie */
-  --input: 32 15% 78%; /* Champ de saisie similaire - fond légèrement chaud */
-  --ring: 38 50% 45%; /* Même que l'accent pour les focus - indication claire et chaleureuse */
-
-  /* Rayon - Douceur des coins arrondis (comme les coins légèrement arrondis des jetons de jeu) */
+  /* Variables sémantiques alignées sur la palette de CLAUDE.md.
+     Crème de lait #F8F4E9, Brun café #4A4A4A, Terre cuite #E27D60,
+     Bleu canard #2C5F6D, Vert sauge #8FBC8F, Gris pierre #E2E8D0, Gris perle #F0F0F0. */
+  --background: 44 52% 94%;          /* Crème de lait */
+  --foreground: 0 0% 29%;            /* Brun café doux */
+  --card: 44 52% 97%;                /* Crème de lait éclairci (cartes) */
+  --card-foreground: 0 0% 29%;
+  --popover: 44 52% 97%;
+  --popover-foreground: 0 0% 29%;
+  --primary: 13 69% 63%;             /* Terre cuite */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 193 42% 30%;          /* Bleu canard */
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 94%;                 /* Gris perle */
+  --muted-foreground: 0 0% 38%;       /* Brun café éclairci (texte secondaire, contraste ≈ 5,5:1) */
+  --accent: 193 42% 30%;             /* Bleu canard : lisible sur crème (contraste > 6:1) */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 45% 40%;          /* Ton foncé de « Error atténué », réservé au texte d'erreur lisible */
+  --destructive-foreground: 0 0% 100%;
+  --border: 79 31% 86%;              /* Gris pierre chaude */
+  --input: 79 31% 80%;
+  --ring: 13 69% 63%;
   --radius: 0.5rem;
-
-  /* Typographie - inspirée des jeux de société classiques */
   --font-body: 'Lato', 'Open Sans', 'Nunito', 'Helvetica Neue', 'Arial', sans-serif;
   --font-display: 'Cinzel', 'Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', serif;
 }
@@ -232,4 +212,21 @@ a.link-interactive:hover {
 ::selection {
   background: hsl(var(--accent) / 0.25);
   color: hsl(var(--foreground));
+}
+
+/* ==========================================================================
+   Composants partagés (états de chargement, listes vides, titres)
+   ========================================================================== */
+@layer components {
+  .page-container { @apply mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8; }
+  .page-eyebrow { @apply text-xs font-bold uppercase tracking-[0.16em] text-bleu-canard-profond; }
+  .page-title { @apply mt-1 font-display text-3xl font-bold text-brun-cafe-doux sm:text-4xl; }
+  .page-lead { @apply mt-2 max-w-2xl text-base text-brun-cafe-doux/80; }
+  .surface { @apply rounded-xl border border-gris-pierre-chaude bg-card shadow-sm; }
+  .empty-state { @apply flex flex-col items-center rounded-xl border border-dashed border-gris-pierre-chaude px-6 py-12 text-center; }
+  .empty-state-icon { @apply mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse; }
+  .empty-state-title { @apply text-lg font-bold text-brun-cafe-doux; }
+  .empty-state-description { @apply mt-2 max-w-xl text-sm text-brun-cafe-doux/80; }
+  .field-label { @apply mb-2 block text-sm font-semibold text-brun-cafe-doux; }
+  .native-select { @apply h-12 w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 text-sm text-brun-cafe-doux focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse focus-visible:ring-offset-2; }
 }

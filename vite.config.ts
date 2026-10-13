@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
@@ -46,6 +47,11 @@ export default defineConfig(({ mode }) => {
     alias: {
       '@': resolve(__dirname, './src'),
     },
+  },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts', 'supabase/tests/**/*.test.ts'],
+    testTimeout: 60000,
   },
   build: {
     rollupOptions: {
