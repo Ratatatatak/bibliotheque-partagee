@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import bgg from '../api/bgg/[...path]';
 import keepalive from '../api/cron/keepalive';
+import translate from '../api/translate';
 
 type Res = { statusCode: number; headers: Record<string, string>; body: string; setHeader(n: string, v: string): void; end(b?: string): void };
 const res = (): Res => ({ statusCode: 0, headers: {}, body: '', setHeader(n, v) { this.headers[n] = v; }, end(b = '') { this.body = b; } });
@@ -11,7 +12,7 @@ describe('fonctions serveur', () => {
     process.env.VITE_SUPABASE_URL = 'https://exemple.supabase.co';
     process.env.VITE_SUPABASE_ANON_KEY = 'cle-publique';
   });
-  afterEach(() => { vi.restoreAllMocks(); delete process.env.CRON_SECRET; });
+  afterEach(() => { vi.restoreAllMocks(); delete process.env.CRON_SECRET; delete process.env.TRANSLATE_SCRIPT_URL; });
 
   it('le relais BGG refuse un visiteur non connecté sans appeler BGG', async () => {
     const spy = vi.spyOn(globalThis, 'fetch');
@@ -54,5 +55,43 @@ describe('fonctions serveur', () => {
     const r2 = res();
     await keepalive({ url: '/api/cron/keepalive', headers: { authorization: 'Bearer autre' } }, r2);
     expect(r2.statusCode).toBe(401);
+  });
+  it('la traduction répond « non configurée » tant que l’outil Google n’est pas renseigné', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch');
+    const r = res();
+    await translate({ method: 'POST', headers: {}, body: { text: 'Hello' } } as never, r);
+    expect(r.statusCode).toBe(503);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('la traduction refuse un visiteur non connecté', async () => {
+    process.env.TRANSLATE_SCRIPT_URL = 'https://script.google.com/macros/s/ABC_123-x/exec';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 401 }));
+    const r = res();
+    await translate({ method: 'POST', headers: {}, body: { text: 'Hello' } } as never, r);
+    expect(r.statusCode).toBe(401);
+  });
+
+  it('la traduction transmet le texte à l’outil Google et renvoie le français', async () => {
+    process.env.TRANSLATE_SCRIPT_URL = 'https://script.google.com/macros/s/ABC_123-x/exec';
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      if (String(input).includes('/auth/v1/user')) return new Response('{"id":"x"}', { status: 200 });
+      expect(JSON.parse(String(init?.body))).toEqual({ text: 'Hello friends' });
+      return new Response('{"translation":"Bonjour les amis"}', { status: 200 });
+    });
+    const r = res();
+    await translate({ method: 'POST', headers: { authorization: 'Bearer ok' }, body: JSON.stringify({ text: 'Hello friends' }) } as never, r);
+    expect(r.statusCode).toBe(200);
+    expect(JSON.parse(r.body)).toEqual({ translation: 'Bonjour les amis' });
+    expect(String(spy.mock.calls[1][0])).toBe('https://script.google.com/macros/s/ABC_123-x/exec');
+  });
+
+  it('la traduction signale une erreur de Google sans planter', async () => {
+    process.env.TRANSLATE_SCRIPT_URL = 'https://script.google.com/macros/s/ABC_123-x/exec';
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) =>
+      String(input).includes('/auth/v1/user') ? new Response('{}', { status: 200 }) : new Response('<html>Erreur</html>', { status: 200 }));
+    const r = res();
+    await translate({ method: 'POST', headers: { authorization: 'Bearer ok' }, body: { text: 'Hello' } } as never, r);
+    expect(r.statusCode).toBe(502);
   });
 });

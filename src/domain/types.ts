@@ -42,6 +42,8 @@ export type Game = {
   playingTime: number | null;
   minAge: number | null;
   description: string | null;
+  /** Traduction française automatique de la description (Google Traduction), si disponible. */
+  descriptionFr?: string | null;
   categories: string[];
   mechanics: string[];
   imageUrl: string | null;

@@ -109,6 +109,9 @@ export const localRepository: LibraryRepository = {
   async updateGameDetails(_actorId, gameId, input) {
     mutate((state) => rules.updateGameDetails(state, gameId, input));
   },
+  async saveTranslation(_actorId, gameId, text) {
+    mutate((state) => ({ ...state, games: state.games.map((g) => (g.id === gameId && !g.descriptionFr ? { ...g, descriptionFr: text } : g)) }));
+  },
   async deleteGame(_actorId, gameId) {
     mutate((state) => rules.deleteGame(state, gameId));
   },

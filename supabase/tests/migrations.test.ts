@@ -276,4 +276,14 @@ describe('liste d’attente et administration des fiches (012)', () => {
     expect((await as(CHLOE, `SELECT whatsapp_phone, messenger_handle FROM public.profiles WHERE id = '${BRUNO}'`))[0]).toEqual({ whatsapp_phone: '33612345678', messenger_handle: 'bruno.test' });
     expect(await as(null, `SELECT whatsapp_phone FROM public.profiles`)).toEqual([]);
   });
+  it('la traduction française : un membre l’enregistre une fois, sans pouvoir écraser une traduction existante', async () => {
+    await expectError(as(null, `SELECT public.save_game_translation('204583', 'Pirate')`), /permission denied|Connectez-vous/);
+    await as(BRUNO, `UPDATE public.games SET description = 'Build a kingdom.' WHERE id = '204583' RETURNING id`);
+    await db.exec(`UPDATE public.games SET description = 'Build a kingdom.', description_fr = NULL WHERE id = '204583'`);
+    await as(CHLOE, `SELECT public.save_game_translation('204583', 'Construisez un royaume.')`);
+    await as(BRUNO, `SELECT public.save_game_translation('204583', 'Texte remplacé')`);
+    expect((await as(BRUNO, `SELECT description, description_fr FROM public.games WHERE id = '204583'`))[0])
+      .toEqual({ description: 'Build a kingdom.', description_fr: 'Construisez un royaume.' });
+    expect(await as(BRUNO, `UPDATE public.games SET description_fr = 'Piraté' WHERE id = '204583' RETURNING id`)).toEqual([]);
+  });
 });

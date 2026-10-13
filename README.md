@@ -114,6 +114,7 @@ pour les fonctions, aucune donnée de démonstration.
 | 011 | Règles renforcées des échanges — uniquement si 006 est appliquée |
 | 012 | Liste d'attente, fusion et suppression de fiches (administrateurs), correctif pour nommer un administrateur depuis l'éditeur SQL |
 | 013 | Coordonnées facultatives (numéro WhatsApp, lien Messenger) pour se prévenir |
+| 015 | Traduction française des descriptions (`description_fr`, fonction `save_game_translation`) |
 | 014 | Comptes du créateur administrateurs (comparaison par empreinte, sans adresse en clair) et suppression des anciennes fiches inutilisées |
 
 La migration **010** :
@@ -157,8 +158,13 @@ membres depuis **Authentication → Users → Invite user**.
 - Jeu de base et extension sont distingués (l'extension est signalée dans la recherche et la fiche).
   Les éditeurs listés par BGG couvrent toutes les éditions, ce qui est indiqué sur la fiche.
 - Image absente ou cassée : un visuel neutre « Image non disponible », jamais une image générée.
-- Les descriptions BGG sont affichées dans leur langue d'origine (souvent l'anglais), sans traduction
-  automatique.
+- **Traduction française automatique** : à la première consultation d'une fiche, la description BGG
+  est traduite par Google Traduction et enregistrée (`games.description_fr`, migration 015) pour tout
+  le groupe ; le texte original reste accessible (« Voir le texte original »). La traduction passe par
+  le relais `api/translate.ts` (membres connectés) vers un petit outil Google Apps Script gratuit
+  (`scripts/google-apps-script/traduction.gs`, 5 000 traductions par jour) dont l'adresse est dans
+  `SCRIPT_URL` (ou la variable `TRANSLATE_SCRIPT_URL`). Sans cet outil, la description reste en
+  anglais. Une description corrigée ou mise à jour depuis BGG est retraduite.
 - **Toutes les fiches viennent de BGG.** L'ancien catalogue intégré à l'application a été retiré.
   Les anciennes fiches encore présentes dans la base se convertissent depuis la page
   **Administration → Anciennes fiches à convertir** : l'application propose la fiche BGG

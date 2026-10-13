@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, ExternalLink, Search } from 'lucide-react';
-import { useGame } from '@/hooks/useLibrary';
+import { useFrenchDescription, useGame } from '@/hooks/useLibrary';
 import { GameImage } from '@/components/library/GameImage';
 import { CopyList } from '@/components/library/CopyList';
 import { EmptyState, ErrorState, LoadingState } from '@/components/library/PageState';
@@ -31,6 +31,8 @@ const GameDetail = () => {
   const game = useGame(id);
   const borrow = useBorrowDialogs();
   const [showAllPublishers, setShowAllPublishers] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const description = useFrenchDescription(game.data);
 
   if (game.isLoading) return <LoadingState label="Chargement de la fiche…" />;
   if (game.isError) return <div className="page-container"><ErrorState error={game.error} onRetry={() => void game.refetch()} /></div>;
@@ -117,10 +119,27 @@ const GameDetail = () => {
 
         <div className="border-t border-gris-pierre-chaude p-6 sm:p-8">
           <h2 className="font-display text-xl font-bold text-brun-cafe-doux">Description</h2>
-          {g.description
-            ? <div className="mt-3 max-w-3xl whitespace-pre-line text-base leading-7 text-brun-cafe-doux">{g.description}</div>
-            : <p className="mt-3 text-muted-foreground">Aucune description disponible.</p>}
-          {g.origin === 'bgg' && g.description && <p className="mt-3 text-xs text-muted-foreground">Description en langue originale, telle que publiée sur BoardGameGeek.</p>}
+          {g.description ? (
+            <>
+              <div className="mt-3 max-w-3xl whitespace-pre-line text-base leading-7 text-brun-cafe-doux" lang={description.french && !showOriginal ? 'fr' : undefined}>
+                {description.french && !showOriginal ? description.french : g.description}
+              </div>
+              <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {description.french ? (
+                  <>
+                    <span>{showOriginal ? 'Description originale, telle que publiée sur BoardGameGeek.' : 'Traduction automatique (Google Traduction).'}</span>
+                    <button type="button" className="min-h-12 font-semibold text-bleu-canard-profond underline underline-offset-4 sm:min-h-0" onClick={() => setShowOriginal((v) => !v)}>
+                      {showOriginal ? 'Voir en français' : 'Voir le texte original'}
+                    </button>
+                  </>
+                ) : description.translating ? (
+                  <span role="status">Traduction en français en cours…</span>
+                ) : (
+                  g.origin === 'bgg' && <span>Description en langue originale, telle que publiée sur BoardGameGeek.</span>
+                )}
+              </p>
+            </>
+          ) : <p className="mt-3 text-muted-foreground">Aucune description disponible.</p>}
         </div>
 
         <footer className="border-t border-gris-pierre-chaude bg-gris-perle/60 p-6 text-sm sm:p-8">
