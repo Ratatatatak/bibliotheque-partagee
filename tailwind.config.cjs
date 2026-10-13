@@ -34,9 +34,9 @@ module.exports = {
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
       },
       fontFamily: {
-        display: ['Cinzel', 'Playfair Display', 'Merriweather', 'Georgia', 'serif'],
+        display: ['Playfair Display', 'Merriweather', 'Georgia', 'serif'],
         sans: ['Lato', 'Open Sans', 'Nunito', 'Helvetica Neue', 'Arial', 'sans-serif'],
-        serif: ['Cinzel', 'Cormorant Garamond', 'Playfair Display', 'Georgia', 'Times New Roman', 'serif'],
+        serif: ['Playfair Display', 'Georgia', 'Times New Roman', 'serif'],
         body: ['Lato', 'Open Sans', 'system-ui', 'sans-serif'],
       },
       borderRadius: {

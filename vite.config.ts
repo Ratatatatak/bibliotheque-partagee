@@ -57,7 +57,7 @@ export default defineConfig(({ mode }) => {
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts', 'supabase/tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'supabase/tests/**/*.test.ts', 'tests/**/*.test.ts'],
     testTimeout: 60000,
   },
   build: {

@@ -76,7 +76,7 @@ const LoanRequestModal = ({ gameName, copy, onClose }: LoanRequestModalProps) =>
             onChange={(event) => setMessage(event.target.value)}
             rows={3}
             placeholder="Ex. : je le récupère samedi chez toi ?"
-            className="w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-base text-brun-cafe-doux placeholder:text-brun-cafe-doux/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse focus-visible:ring-offset-2"
+            className="w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-base text-brun-cafe-doux placeholder:text-brun-cafe-doux/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond focus-visible:ring-offset-2"
           />
         </div>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

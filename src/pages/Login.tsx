@@ -41,7 +41,7 @@ const LocalLogin = ({ onDone }: { onDone: () => void }) => {
                 <button
                   type="button"
                   onClick={() => { localSignIn(member.id); onDone(); }}
-                  className="flex min-h-12 w-full items-center gap-3 rounded-lg border border-gris-pierre-chaude bg-creme-de-lait px-4 text-left font-semibold text-brun-cafe-doux hover:border-terre-cuite-chaleureuse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse"
+                  className="flex min-h-12 w-full items-center gap-3 rounded-lg border border-gris-pierre-chaude bg-creme-de-lait px-4 text-left font-semibold text-brun-cafe-doux hover:border-terre-cuite-chaleureuse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond"
                 >
                   <User className="h-5 w-5" aria-hidden="true" />
                   {member.displayName}{member.username && <span className="text-sm font-normal text-muted-foreground">@{member.username}</span>}
