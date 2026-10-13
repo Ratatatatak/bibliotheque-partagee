@@ -260,18 +260,17 @@ const Admin = () => {
 
   return (
     <div className="page-container">
-      <PageHeader eyebrow="Administration" title="Fiches de jeux" lead="Toutes les fiches viennent de BoardGameGeek. Ici, vous convertissez les anciennes fiches et gardez les autres à jour." />
+      <PageHeader eyebrow="Administration" title="Fiches de jeux" lead="Toutes les fiches viennent de BoardGameGeek. Ici, vous les gardez à jour ou corrigez une information." />
 
       {games.isLoading ? <LoadingState /> : games.isError ? <ErrorState error={games.error} onRetry={() => void games.refetch()} /> : (
         <>
+          {(legacyUsed.length > 0 || legacyUnused.length > 0) && (
           <section aria-labelledby="legacy" className="mb-10">
             <h2 id="legacy" className="mb-2 font-display text-xl font-bold text-brun-cafe-doux">Anciennes fiches à convertir</h2>
             <p className="mb-4 text-sm text-muted-foreground">
               Ces jeux ont été ajoutés avant BoardGameGeek. La conversion remplace leur fiche par celle de BGG ; exemplaires, prêts et historique sont conservés.
             </p>
-            {legacyUsed.length === 0
-              ? <p className="rounded-lg border border-dashed border-gris-pierre-chaude p-6 text-sm text-muted-foreground">Aucune ancienne fiche utilisée : tout est déjà sur BoardGameGeek.</p>
-              : <LegacyConversion legacy={legacyUsed} onChoose={setChoosing} />}
+            {legacyUsed.length > 0 && <LegacyConversion legacy={legacyUsed} onChoose={setChoosing} />}
             {legacyUnused.length > 0 && (
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 <span>{legacyUnused.length} ancienne{legacyUnused.length > 1 ? 's fiches ne servent' : ' fiche ne sert'} plus (aucun exemplaire).</span>
@@ -279,6 +278,7 @@ const Admin = () => {
               </div>
             )}
           </section>
+          )}
 
           <section aria-labelledby="all" className="mb-10">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

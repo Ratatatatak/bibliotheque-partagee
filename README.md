@@ -150,6 +150,10 @@ membres depuis **Authentication → Users → Invite user**.
   historique, favoris et parties à la fiche BGG (fonction `merge_games`, migration 012). Les anciennes
   fiches sans aucun exemplaire peuvent être supprimées en un clic (celles liées à un historique sont
   conservées).
+- Pendant la phase de test, le script `supabase/nettoyage/nettoyage_anciennes_fiches.sql` (à lancer
+  à la main dans l'éditeur SQL) supprime **définitivement** toutes les anciennes fiches et tout ce qui
+  y est rattaché (exemplaires, demandes, prêts, échanges, favoris, avis, parties, liste d'attente).
+  Les comptes et les fiches BGG ne sont pas touchés.
 
 **Conditions d'utilisation à vérifier par le groupe** : l'usage de l'API BGG est soumis à ses
 conditions (https://boardgamegeek.com/xmlapi/termsofuse) et à l'enregistrement de l'application ;
