@@ -5,7 +5,7 @@ import { isSignedInMember, sendJson, type VercelRequest, type VercelResponse } f
 // Réservé aux membres connectés. Le texte n'est conservé nulle part par ce relais.
 
 /** Adresse de l'outil de traduction (web app Apps Script « Ludothèque – traduction »). */
-const SCRIPT_URL = '';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwHZpJfdKQr2NGtMi8wnElIv5qlFyBCruSAd0EhgGedeK6gHdq0my3_ufIEK4hmoxbH5g/exec';
 
 const MAX_LENGTH = 20000;
 const SCRIPT_URL_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
