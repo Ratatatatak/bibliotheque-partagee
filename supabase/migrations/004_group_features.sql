@@ -21,7 +21,8 @@ ALTER TABLE public.game_sources ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Authenticated users can view game sources' AND polrelid = 'public.game_sources'::regclass) THEN
-        CREATE POLICY "Authenticated users can view game sources"
+        DROP POLICY IF EXISTS "Authenticated users can view game sources" ON public.game_sources;
+CREATE POLICY "Authenticated users can view game sources"
         ON public.game_sources
         FOR SELECT
         TO authenticated
@@ -31,7 +32,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Authenticated users can add game sources' AND polrelid = 'public.game_sources'::regclass) THEN
-        CREATE POLICY "Authenticated users can add game sources"
+        DROP POLICY IF EXISTS "Authenticated users can add game sources" ON public.game_sources;
+CREATE POLICY "Authenticated users can add game sources"
         ON public.game_sources
         FOR INSERT
         TO authenticated
@@ -49,7 +51,8 @@ ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can view their favorites' AND polrelid = 'public.favorites'::regclass) THEN
-        CREATE POLICY "Users can view their favorites"
+        DROP POLICY IF EXISTS "Users can view their favorites" ON public.favorites;
+CREATE POLICY "Users can view their favorites"
         ON public.favorites
         FOR SELECT
         TO authenticated
@@ -59,7 +62,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can add their favorites' AND polrelid = 'public.favorites'::regclass) THEN
-        CREATE POLICY "Users can add their favorites"
+        DROP POLICY IF EXISTS "Users can add their favorites" ON public.favorites;
+CREATE POLICY "Users can add their favorites"
         ON public.favorites
         FOR INSERT
         TO authenticated
@@ -69,7 +73,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can remove their favorites' AND polrelid = 'public.favorites'::regclass) THEN
-        CREATE POLICY "Users can remove their favorites"
+        DROP POLICY IF EXISTS "Users can remove their favorites" ON public.favorites;
+CREATE POLICY "Users can remove their favorites"
         ON public.favorites
         FOR DELETE
         TO authenticated
@@ -91,7 +96,8 @@ ALTER TABLE public.game_reviews ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Authenticated users can view reviews' AND polrelid = 'public.game_reviews'::regclass) THEN
-        CREATE POLICY "Authenticated users can view reviews"
+        DROP POLICY IF EXISTS "Authenticated users can view reviews" ON public.game_reviews;
+CREATE POLICY "Authenticated users can view reviews"
         ON public.game_reviews
         FOR SELECT
         TO authenticated
@@ -101,7 +107,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can add their reviews' AND polrelid = 'public.game_reviews'::regclass) THEN
-        CREATE POLICY "Users can add their reviews"
+        DROP POLICY IF EXISTS "Users can add their reviews" ON public.game_reviews;
+CREATE POLICY "Users can add their reviews"
         ON public.game_reviews
         FOR INSERT
         TO authenticated
@@ -111,7 +118,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can update their reviews' AND polrelid = 'public.game_reviews'::regclass) THEN
-        CREATE POLICY "Users can update their reviews"
+        DROP POLICY IF EXISTS "Users can update their reviews" ON public.game_reviews;
+CREATE POLICY "Users can update their reviews"
         ON public.game_reviews
         FOR UPDATE
         TO authenticated
@@ -122,7 +130,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can delete their reviews' AND polrelid = 'public.game_reviews'::regclass) THEN
-        CREATE POLICY "Users can delete their reviews"
+        DROP POLICY IF EXISTS "Users can delete their reviews" ON public.game_reviews;
+CREATE POLICY "Users can delete their reviews"
         ON public.game_reviews
         FOR DELETE
         TO authenticated
@@ -145,7 +154,8 @@ ALTER TABLE public.game_sessions ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Authenticated users can view sessions' AND polrelid = 'public.game_sessions'::regclass) THEN
-        CREATE POLICY "Authenticated users can view sessions"
+        DROP POLICY IF EXISTS "Authenticated users can view sessions" ON public.game_sessions;
+CREATE POLICY "Authenticated users can view sessions"
         ON public.game_sessions
         FOR SELECT
         TO authenticated
@@ -155,7 +165,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can create sessions' AND polrelid = 'public.game_sessions'::regclass) THEN
-        CREATE POLICY "Users can create sessions"
+        DROP POLICY IF EXISTS "Users can create sessions" ON public.game_sessions;
+CREATE POLICY "Users can create sessions"
         ON public.game_sessions
         FOR INSERT
         TO authenticated
@@ -165,7 +176,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Creators can update sessions' AND polrelid = 'public.game_sessions'::regclass) THEN
-        CREATE POLICY "Creators can update sessions"
+        DROP POLICY IF EXISTS "Creators can update sessions" ON public.game_sessions;
+CREATE POLICY "Creators can update sessions"
         ON public.game_sessions
         FOR UPDATE
         TO authenticated
@@ -176,7 +188,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Creators can delete sessions' AND polrelid = 'public.game_sessions'::regclass) THEN
-        CREATE POLICY "Creators can delete sessions"
+        DROP POLICY IF EXISTS "Creators can delete sessions" ON public.game_sessions;
+CREATE POLICY "Creators can delete sessions"
         ON public.game_sessions
         FOR DELETE
         TO authenticated
@@ -194,7 +207,8 @@ ALTER TABLE public.session_players ENABLE ROW LEVEL SECURITY;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Authenticated users can view session players' AND polrelid = 'public.session_players'::regclass) THEN
-        CREATE POLICY "Authenticated users can view session players"
+        DROP POLICY IF EXISTS "Authenticated users can view session players" ON public.session_players;
+CREATE POLICY "Authenticated users can view session players"
         ON public.session_players
         FOR SELECT
         TO authenticated
@@ -204,7 +218,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can join sessions' AND polrelid = 'public.session_players'::regclass) THEN
-        CREATE POLICY "Users can join sessions"
+        DROP POLICY IF EXISTS "Users can join sessions" ON public.session_players;
+CREATE POLICY "Users can join sessions"
         ON public.session_players
         FOR INSERT
         TO authenticated
@@ -214,7 +229,8 @@ END$$;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_policy WHERE polname = 'Users can leave sessions' AND polrelid = 'public.session_players'::regclass) THEN
-        CREATE POLICY "Users can leave sessions"
+        DROP POLICY IF EXISTS "Users can leave sessions" ON public.session_players;
+CREATE POLICY "Users can leave sessions"
         ON public.session_players
         FOR DELETE
         TO authenticated

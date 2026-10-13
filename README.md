@@ -91,20 +91,13 @@ Toute variable commençant par `VITE_` est publiée dans le navigateur. **Ne jam
 
 Les migrations sont dans `supabase/migrations/`. Toutes sont non destructives.
 
-**Application automatique** : à chaque arrivée sur `main` d'une nouvelle migration, l'action GitHub
-« Base de données » (`.github/workflows/database.yml`, script `scripts/db/apply-migrations.mjs`)
-l'applique toute seule, dans une transaction (en cas d'erreur, rien n'est modifié). Les migrations
-appliquées sont notées dans `ludotheque_admin.applied_migrations` ; au premier passage, 001 à 011
-(appliquées à la main auparavant) sont seulement notées comme faites. Réglage unique, dans GitHub →
-Settings → Secrets and variables → Actions :
-
-| Secret | Contenu |
-|---|---|
-| `SUPABASE_DB_URL` | adresse **Session pooler** de Supabase (bouton « Connect »), mot de passe de la base inclus |
-| `ADMIN_EMAILS` | facultatif : emails des administrateurs, séparés par des virgules |
-
-L'action peut aussi être lancée à la main (onglet Actions → Base de données → Run workflow), et
-lancer un script ponctuel de `supabase/nettoyage/`. Sans le secret, elle ne fait rien.
+**Application automatique** : le projet Supabase est relié au dépôt GitHub (intégration GitHub de
+Supabase). À chaque arrivée sur `main`, Supabase applique les migrations qu'il n'a pas encore
+enregistrées ; le résultat apparaît dans la vérification « Supabase Preview » du commit. Toutes les
+migrations sont donc **rejouables** sans erreur et sans modifier les données, ce que vérifie
+`supabase/tests/replay.test.ts`. Règle pour toute nouvelle migration : `IF NOT EXISTS`,
+`DROP … IF EXISTS` avant `CREATE POLICY` / `CREATE TRIGGER` / `ADD CONSTRAINT`, `CREATE OR REPLACE`
+pour les fonctions, aucune donnée de démonstration.
 
 | Fichier | Contenu |
 |---|---|
@@ -121,6 +114,7 @@ lancer un script ponctuel de `supabase/nettoyage/`. Sans le secret, elle ne fait
 | 011 | Règles renforcées des échanges — uniquement si 006 est appliquée |
 | 012 | Liste d'attente, fusion et suppression de fiches (administrateurs), correctif pour nommer un administrateur depuis l'éditeur SQL |
 | 013 | Coordonnées facultatives (numéro WhatsApp, lien Messenger) pour se prévenir |
+| 014 | Comptes du créateur administrateurs (comparaison par empreinte, sans adresse en clair) et suppression des anciennes fiches inutilisées |
 
 La migration **010** :
 

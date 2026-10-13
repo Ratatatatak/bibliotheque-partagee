@@ -22,6 +22,8 @@ describe('prévenir sur WhatsApp / Messenger', () => {
     expect(normalizeMessenger('m.dupont')).toBe('m.dupont');
     expect(normalizeMessenger('@theo')).toBe('theo');
     expect(normalizeMessenger('pas valide !')).toBeNull();
+    expect(normalizeMessenger('https://www.messenger.com/e2ee/t/2928802588')).toBeNull();
+    expect(normalizeMessenger('https://www.messenger.com/t/2928802588')).toBeNull();
   });
 
   it('construit les liens', () => {

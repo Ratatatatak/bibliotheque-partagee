@@ -164,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const whatsapp = rawWhatsapp?.trim() ? normalizePhone(rawWhatsapp) : null;
       if (rawWhatsapp?.trim() && !whatsapp) throw new Error('Numéro WhatsApp non reconnu. Exemple : 06 12 34 56 78 ou +33 6 12 34 56 78.');
       const messenger = rawMessenger?.trim() ? normalizeMessenger(rawMessenger) : null;
-      if (rawMessenger?.trim() && !messenger) throw new Error('Lien Messenger non reconnu. Exemple : m.me/prenom.nom');
+      if (rawMessenger?.trim() && !messenger) throw new Error('Lien Messenger non reconnu : mettez l’adresse de votre profil Facebook (ex. facebook.com/prenom.nom), pas celle d’une conversation.');
       if (appMode === 'local') {
         updateLocalState((state) => ({ state: { ...state, members: state.members.map((m) => (m.id === user.id ? { ...m, whatsapp, messenger } : m)) }, result: undefined }));
         setUser(readLocalUser());
