@@ -94,7 +94,8 @@ Supabase ou `supabase db push`). Toutes sont non destructives ; la `010` est rej
 | 007 | Pseudos |
 | 008 | Un exemplaire par jeu et par membre |
 | 009 | Note BGG |
-| **010** | **Intégrité des prêts et confidentialité** (voir ci-dessous) |
+| **010** | **Intégrité des prêts et confidentialité** (voir ci-dessous) — prérequis : 001, 002, 003 |
+| 011 | Règles renforcées des échanges — uniquement si 006 est appliquée |
 
 La migration **010** :
 
@@ -102,7 +103,7 @@ La migration **010** :
 - interdit toute écriture directe des demandes, prêts et statuts d'exemplaire depuis le navigateur :
   tout passe par des fonctions SQL qui vérifient *qui* agit (`create_loan_request`,
   `accept_loan_request`, `refuse_loan_request`, `cancel_loan_request`, `return_loan`, `extend_loan`,
-  `set_copy_availability`, `archive_game_copy`, `accept/refuse/cancel_exchange_request`) ;
+  `set_copy_availability`, `archive_game_copy` ; les échanges sont traités par la 011) ;
 - verrouille l'exemplaire pendant une décision : deux acceptations simultanées ne peuvent pas créer
   deux prêts ;
 - remplace la suppression des exemplaires par un archivage, et empêche qu'une suppression efface

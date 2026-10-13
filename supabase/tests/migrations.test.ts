@@ -200,3 +200,21 @@ describe('inventaire et prêts', () => {
     await expectError(as(null, `SELECT public.create_loan_request($1, CURRENT_DATE + 7, NULL)`, [brunoCopy]), /permission denied/);
   });
 });
+
+describe('base partiellement migrée', () => {
+  it('010 s’applique avec seulement 001, 002 et 003 (sans échanges ni parties)', async () => {
+    const partial = new PGlite({ extensions: { uuid_ossp } });
+    await partial.exec(AUTH_STUB);
+    for (const file of ['001_initial_schema.sql', '002_business_rules.sql', '003_profiles.sql', '010_loan_integrity_and_privacy.sql']) {
+      await partial.exec(SUPABASE_GRANTS);
+      await partial.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
+    }
+    await partial.exec(`INSERT INTO auth.users (id) VALUES ('${ALICE}')`);
+    await partial.exec(`SELECT set_config('request.jwt.claim.sub', '${ALICE}', false); SET ROLE authenticated;`);
+    const copy = (await partial.query<{ id: string }>(`INSERT INTO public.game_copies (game_id, owner_id) VALUES ('azul', $1) RETURNING id`, [ALICE])).rows[0].id;
+    await partial.query(`SELECT public.archive_game_copy($1)`, [copy]);
+    const row = (await partial.query<{ archived: boolean }>(`SELECT archived_at IS NOT NULL AS archived FROM public.game_copies WHERE id = $1`, [copy])).rows[0];
+    expect(row.archived).toBe(true);
+    await partial.close();
+  });
+});
