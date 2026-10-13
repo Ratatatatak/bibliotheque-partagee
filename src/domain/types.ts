@@ -48,6 +48,8 @@ export type Game = {
   ratingsCount: number | null;
   origin: GameDataOrigin;
   sources: GameSource[];
+  /** Si cette fiche a été fusionnée dans une autre (doublon), identifiant de la fiche conservée. */
+  mergedInto?: string | null;
 };
 
 export type CopyStatus = 'available' | 'lent' | 'unavailable';
@@ -101,7 +103,13 @@ export type CopyView = GameCopy & {
   pendingRequestCount: number;
 };
 
-export type GameWithCopies = Game & { copies: CopyView[] };
+export type WaitlistEntry = { memberId: MemberId; gameId: string; createdAt: string };
+
+export type GameWithCopies = Game & {
+  copies: CopyView[];
+  /** Membres qui attendent qu'un exemplaire se libère (liste d'attente). */
+  waitingMembers: Member[];
+};
 
 export type LoanRequestView = LoanRequest & {
   game: Pick<Game, 'id' | 'name' | 'imageUrl'>;

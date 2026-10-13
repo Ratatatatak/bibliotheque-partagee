@@ -1,6 +1,6 @@
 import * as rules from '@/domain/localState';
 import { DomainError, type GameInput, type MemberId } from '@/domain/types';
-import { buildCopyViews, buildGamesWithCopies, buildLoanViews, buildRequestViews, buildSessionViews } from '@/domain/views';
+import { buildGamesWithCopies, buildLoanViews, buildRequestViews, buildSessionViews } from '@/domain/views';
 import { readLocalState, updateLocalState } from './localStore';
 import type { LibraryRepository } from './repository';
 
@@ -21,10 +21,11 @@ export const localRepository: LibraryRepository = {
 
   async getGame(gameId) {
     const state = readLocalState();
-    const game = state.games.find((item) => item.id === gameId);
-    if (!game) return null;
-    const copies = buildCopyViews(state).filter((copy) => copy.gameId === gameId);
-    return { ...game, copies, sources: game.sources };
+    const raw = state.games.find((item) => item.id === gameId);
+    // Une fiche fusionnée renvoie vers la fiche conservée.
+    const id = raw?.mergedInto ?? gameId;
+    const game = buildGamesWithCopies(state, { includeGamesWithoutCopies: true }).find((item) => item.id === id);
+    return game ? { ...game, sources: game.sources } : null;
   },
 
   async listCollection(memberId) {
@@ -79,6 +80,30 @@ export const localRepository: LibraryRepository = {
       requests: buildRequestViews(state).filter((r) => r.requesterId === actorId || r.ownerId === actorId),
       loans: buildLoanViews(state).filter((l) => l.borrowerId === actorId || l.ownerId === actorId),
     };
+  },
+
+  async joinWaitlist(actorId, gameId) {
+    mutate((state) => rules.joinWaitlist(state, actorId, gameId));
+  },
+  async leaveWaitlist(actorId, gameId) {
+    mutate((state) => rules.leaveWaitlist(state, actorId, gameId));
+  },
+
+  // En mode local (démonstration), chaque profil peut administrer les fiches.
+  async isAdmin() {
+    return true;
+  },
+  async listAllGames() {
+    return buildGamesWithCopies(readLocalState(), { includeGamesWithoutCopies: true });
+  },
+  async mergeGames(_actorId, sourceId, targetId) {
+    mutate((state) => rules.mergeGames(state, sourceId, targetId));
+  },
+  async updateGameDetails(_actorId, gameId, input) {
+    mutate((state) => rules.updateGameDetails(state, gameId, input));
+  },
+  async deleteGame(_actorId, gameId) {
+    mutate((state) => rules.deleteGame(state, gameId));
   },
 
   async listFavorites(actorId) {

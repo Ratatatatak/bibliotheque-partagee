@@ -14,6 +14,7 @@ import {
   type LoanRequestView,
   type LoanView,
   type Member,
+  type WaitlistEntry,
 } from './types';
 
 export type Snapshot = {
@@ -23,6 +24,7 @@ export type Snapshot = {
   requests: LoanRequest[];
   /** Prêts visibles : au minimum les prêts actifs du groupe (pour la disponibilité). */
   loans: Loan[];
+  waitlist?: WaitlistEntry[];
 };
 
 const indexBy = <T extends { id: string }>(items: T[]) => new Map(items.map((item) => [item.id, item]));
@@ -53,12 +55,18 @@ export const buildCopyViews = (snapshot: Snapshot): CopyView[] => {
 
 export const buildGamesWithCopies = (snapshot: Snapshot, options: { includeGamesWithoutCopies?: boolean } = {}): GameWithCopies[] => {
   const copyViews = buildCopyViews(snapshot);
+  const members = indexBy(snapshot.members);
   return snapshot.games
+    .filter((game) => !game.mergedInto)
     .map((game) => ({
       ...game,
       copies: copyViews
         .filter((copy) => copy.gameId === game.id)
         .sort((a, b) => a.owner.displayName.localeCompare(b.owner.displayName, 'fr')),
+      waitingMembers: (snapshot.waitlist ?? [])
+        .filter((entry) => entry.gameId === game.id)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .map((entry) => members.get(entry.memberId) ?? unknownMember(entry.memberId)),
     }))
     .filter((game) => options.includeGamesWithoutCopies || game.copies.length > 0)
     .sort((a, b) => a.name.localeCompare(b.name, 'fr'));

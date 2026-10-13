@@ -54,11 +54,11 @@ const authHeaders = async (): Promise<Record<string, string>> => {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
 };
 
-async function fetchBGG(endpoint: string, params: Record<string, string>): Promise<string> {
+async function fetchBGG(endpoint: string, params: Record<string, string>, maxAttempts = 4): Promise<string> {
   const url = `${BGG_BASE_URL}/${endpoint}?${new URLSearchParams(params).toString()}`;
 
   const headers = await authHeaders();
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     let response: Response;
     try {
       response = await fetch(url, { headers });
@@ -67,8 +67,8 @@ async function fetchBGG(endpoint: string, params: Record<string, string>): Promi
     }
 
     // 202 = BGG prépare la réponse ; 429 = trop de requêtes : on patiente puis on réessaie.
-    if ((response.status === 202 || response.status === 429) && attempt < 3) {
-      await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+    if ((response.status === 202 || response.status === 429) && attempt < maxAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, Math.min(1500 * (attempt + 1), 5000)));
       continue;
     }
     if (response.status === 503 && (response.headers.get('content-type') || '').includes('json')) {
@@ -126,8 +126,18 @@ function parseSearch(xml: string): BGGSearchResult[] {
 
 function parseDetails(xml: string): BGGGameDetails | null {
   const item = parseXml(xml).querySelector('items > item');
+  return item ? parseItem(item) : null;
+}
+
+function parseAllDetails(xml: string): BGGGameDetails[] {
+  return Array.from(parseXml(xml).querySelectorAll('items > item'))
+    .map(parseItem)
+    .filter((details): details is BGGGameDetails => details !== null);
+}
+
+function parseItem(item: Element): BGGGameDetails | null {
   const id = attr(item, 'id');
-  if (!item || !id) return null;
+  if (!id) return null;
   const links = (type: string) => Array.from(item.querySelectorAll(`link[type='${type}']`))
     .map((link) => attr(link, 'value'))
     .filter((value): value is string => Boolean(value) && value !== '(Uncredited)');
@@ -224,5 +234,54 @@ export const bggDetailsToGameInput = (details: BGGGameDetails, retrievedAt = new
     sources: [{ name: 'BoardGameGeek', url: `https://boardgamegeek.com/boardgame/${details.id}`, retrievedAt }],
   };
 };
+
+/** Fiches de plusieurs jeux d'un coup (BGG accepte 20 identifiants par appel). */
+export async function getBGGGamesDetails(gameIds: string[]): Promise<BGGGameDetails[]> {
+  const ids = Array.from(new Set(gameIds.filter((id) => /^\d+$/.test(id))));
+  const results: BGGGameDetails[] = [];
+  for (let i = 0; i < ids.length; i += 20) {
+    if (i > 0) await new Promise((resolve) => setTimeout(resolve, 1000)); // on ménage l'API BGG
+    results.push(...parseAllDetails(await fetchBGG('thing', { id: ids.slice(i, i + 20).join(','), stats: '1' })));
+  }
+  return results;
+}
+
+export type BGGCollectionItem = {
+  id: string;
+  name: string;
+  year: string | null;
+  thumbnail: string | null;
+  isExpansion: boolean;
+};
+
+function parseCollection(xml: string, isExpansion: boolean): BGGCollectionItem[] {
+  const doc = parseXml(xml);
+  const error = doc.querySelector('errors > error > message')?.textContent?.trim();
+  if (error) {
+    throw new BGGUnavailableError(/invalid username/i.test(error) ? 'Ce pseudo BoardGameGeek n’existe pas.' : `BoardGameGeek : ${error}`, 400);
+  }
+  return Array.from(doc.querySelectorAll('items > item')).map((item) => ({
+    id: attr(item, 'objectid') ?? '',
+    name: item.querySelector('name')?.textContent?.trim() ?? '',
+    year: item.querySelector('yearpublished')?.textContent?.trim() || null,
+    thumbnail: item.querySelector('thumbnail')?.textContent?.trim() || null,
+    isExpansion,
+  })).filter((item) => item.id && item.name);
+}
+
+/**
+ * Jeux marqués « possédés » dans la collection BGG publique d'un membre.
+ * BGG prépare la liste en arrière-plan (réponse 202) : on patiente jusqu'à ~1 minute.
+ */
+export async function getBGGOwnedCollection(username: string): Promise<BGGCollectionItem[]> {
+  const user = username.trim();
+  if (!user) return [];
+  const base = parseCollection(await fetchBGG('collection', { username: user, own: '1', subtype: 'boardgame', excludesubtype: 'boardgameexpansion' }, 14), false);
+  const expansions = parseCollection(await fetchBGG('collection', { username: user, own: '1', subtype: 'boardgameexpansion' }, 14), true);
+  const items = [...base, ...expansions];
+  return items
+    .filter((item, index) => items.findIndex((other) => other.id === item.id) === index)
+    .sort((a, b) => Number(a.isExpansion) - Number(b.isExpansion) || a.name.localeCompare(b.name, 'fr'));
+}
 
 export const bggApi = { search: searchBGGGames, getDetails: getBGGGameDetails };

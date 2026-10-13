@@ -2,9 +2,9 @@ import { isSignedInMember, sendJson, type VercelRequest, type VercelResponse } f
 
 // Relais vers l'API BoardGameGeek. Le jeton BGG du groupe reste sur le serveur.
 // Seuls les membres connectés peuvent l'utiliser, et seulement pour les deux
-// appels dont l'application a besoin (recherche et fiche d'un jeu).
+// appels dont l'application a besoin (recherche, fiche d'un jeu, collection d'un membre).
 
-const ALLOWED_ENDPOINTS = new Set(['search', 'thing']);
+const ALLOWED_ENDPOINTS = new Set(['search', 'thing', 'collection']);
 
 export default async function handler(request: VercelRequest, response: VercelResponse): Promise<void> {
   const token = process.env.BGG_API_TOKEN;

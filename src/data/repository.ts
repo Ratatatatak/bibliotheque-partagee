@@ -54,6 +54,17 @@ export interface LibraryRepository {
   extendLoan(actorId: MemberId, loanId: string, newReturnDate: string): Promise<void>;
   listMyActivity(actorId: MemberId): Promise<MyActivity>;
 
+  /** Liste d'attente : être prévenu quand un exemplaire du jeu se libère. */
+  joinWaitlist(actorId: MemberId, gameId: string): Promise<void>;
+  leaveWaitlist(actorId: MemberId, gameId: string): Promise<void>;
+
+  /** Administration des fiches (réservée aux administrateurs avec Supabase). */
+  isAdmin(actorId: MemberId): Promise<boolean>;
+  listAllGames(): Promise<GameWithCopies[]>;
+  mergeGames(actorId: MemberId, sourceId: string, targetId: string): Promise<void>;
+  updateGameDetails(actorId: MemberId, gameId: string, input: GameInput): Promise<void>;
+  deleteGame(actorId: MemberId, gameId: string): Promise<void>;
+
   listFavorites(actorId: MemberId): Promise<string[]>;
   toggleFavorite(actorId: MemberId, gameId: string): Promise<void>;
 
