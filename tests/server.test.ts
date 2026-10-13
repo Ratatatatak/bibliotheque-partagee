@@ -56,7 +56,8 @@ describe('fonctions serveur', () => {
     await keepalive({ url: '/api/cron/keepalive', headers: { authorization: 'Bearer autre' } }, r2);
     expect(r2.statusCode).toBe(401);
   });
-  it('la traduction répond « non configurée » tant que l’outil Google n’est pas renseigné', async () => {
+  it('la traduction répond « non configurée » si l’adresse de l’outil Google est invalide', async () => {
+    process.env.TRANSLATE_SCRIPT_URL = 'https://exemple.com/pas-google';
     const spy = vi.spyOn(globalThis, 'fetch');
     const r = res();
     await translate({ method: 'POST', headers: {}, body: { text: 'Hello' } } as never, r);
