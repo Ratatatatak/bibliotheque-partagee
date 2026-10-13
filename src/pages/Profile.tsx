@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/library/PageState';
 import { errorMessage } from '@/data/repository';
 
 const Stat = ({ value, label, to }: { value: number | string; label: string; to: string }) => (
-  <Link to={to} className="surface block p-4 text-center hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse">
+  <Link to={to} className="surface block p-4 text-center hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond">
     <span className="block font-display text-3xl font-bold text-brun-cafe-doux">{value}</span>
     <span className="text-sm text-muted-foreground">{label}</span>
   </Link>

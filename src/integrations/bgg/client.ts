@@ -7,6 +7,7 @@
 // jamais envoyé au navigateur.
 
 import type { GameInput } from '@/domain/types';
+import { supabase } from '@/integrations/supabase/client';
 
 export type BGGSearchResult = {
   id: string;
@@ -45,13 +46,22 @@ export class BGGUnavailableError extends Error {
 
 const BGG_BASE_URL = '/api/bgg';
 
+/** Le relais BGG n'accepte que les membres connectés : on lui transmet la session. */
+const authHeaders = async (): Promise<Record<string, string>> => {
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+};
+
 async function fetchBGG(endpoint: string, params: Record<string, string>): Promise<string> {
   const url = `${BGG_BASE_URL}/${endpoint}?${new URLSearchParams(params).toString()}`;
 
+  const headers = await authHeaders();
   for (let attempt = 0; attempt < 4; attempt += 1) {
     let response: Response;
     try {
-      response = await fetch(url);
+      response = await fetch(url, { headers });
     } catch {
       throw new BGGUnavailableError('Connexion à BoardGameGeek impossible. Vérifiez votre connexion internet.', null);
     }
@@ -63,6 +73,9 @@ async function fetchBGG(endpoint: string, params: Record<string, string>): Promi
     }
     if (response.status === 503 && (response.headers.get('content-type') || '').includes('json')) {
       throw new BGGUnavailableError('La recherche BoardGameGeek n’est pas configurée sur le serveur (jeton BGG_API_TOKEN manquant).', 503);
+    }
+    if (response.status === 401 && (response.headers.get('content-type') || '').includes('json')) {
+      throw new BGGUnavailableError('Votre session a expiré : reconnectez-vous pour rechercher un jeu.', 401);
     }
     if (response.status === 401 || response.status === 403) {
       throw new BGGUnavailableError('BoardGameGeek a refusé l’accès : le jeton BGG_API_TOKEN est absent, invalide ou révoqué.', response.status);

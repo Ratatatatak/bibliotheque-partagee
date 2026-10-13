@@ -80,7 +80,7 @@ const BggSearch = ({ ownedIds, onAdd, adding }: { ownedIds: Set<string>; onAdd: 
             return (
               <li key={result.id}>
                 <button type="button" disabled={owned} onClick={() => void select(result)}
-                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-left hover:border-terre-cuite-chaleureuse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse disabled:cursor-not-allowed disabled:opacity-60">
+                  className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-left hover:border-terre-cuite-chaleureuse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond disabled:cursor-not-allowed disabled:opacity-60">
                   <span className="min-w-0">
                     <span className="block font-semibold text-brun-cafe-doux">{result.name}</span>
                     <span className="text-xs text-muted-foreground">
@@ -148,7 +148,7 @@ const CopyCard = ({ gameId, gameName, imageUrl, copy }: { gameId: string; gameNa
         {editing ? (
           <div className="space-y-2">
             <label htmlFor={`notes-${copy.id}`} className="field-label">Remarque visible par le groupe (état, pièces manquantes…)</label>
-            <textarea id={`notes-${copy.id}`} rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse" />
+            <textarea id={`notes-${copy.id}`} rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 py-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond" />
             <div className="flex gap-2">
               <Button size="sm" onClick={() => saveNotes.mutate(notes, { onSuccess: () => setEditing(false) })} disabled={saveNotes.isLoading}>Enregistrer</Button>
               <Button size="sm" variant="ghost" onClick={() => { setNotes(copy.notes ?? ''); setEditing(false); }}>Annuler</Button>

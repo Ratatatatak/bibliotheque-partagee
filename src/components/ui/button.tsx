@@ -8,11 +8,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-terre-cuite-chaleureuse text-white hover:bg-terre-cuite-chaleureuse/90",
-        primary: "bg-terre-cuite-chaleureuse text-white hover:bg-terre-cuite-chaleureuse/90",
+        default: "bg-bleu-canard-profond text-white hover:bg-bleu-canard-profond/90",
+        primary: "bg-bleu-canard-profond text-white hover:bg-bleu-canard-profond/90",
         destructive: "bg-error-atténue text-brun-cafe-doux hover:bg-error-atténue/90",
         outline: "border border-terre-cuite-chaleureuse bg-transparent text-brun-cafe-doux hover:bg-terre-cuite-chaleureuse/10",
-        secondary: "bg-bleu-canard-profond text-white hover:bg-bleu-canard-profond/80",
+        secondary: "border border-gris-pierre-chaude bg-gris-perle text-brun-cafe-doux hover:bg-gris-pierre-chaude",
         ghost: "text-brun-cafe-doux hover:bg-terre-cuite-chaleureuse/10",
         link: "text-bleu-canard-profond underline underline-offset-4 hover:no-underline",
       },

@@ -14,7 +14,7 @@ export const GameImage = ({ src, name, className, size = 'md' }: GameImageProps)
   if (!src || failed) {
     return (
       <div
-        className={cn('flex flex-col items-center justify-center gap-2 bg-gris-perle text-center text-brun-cafe-doux/70', className)}
+        className={cn('flex flex-col items-center justify-center gap-2 bg-gris-perle text-center text-brun-cafe-doux', className)}
         role="img"
         aria-label={`Image de la boîte de ${name} non disponible`}
       >

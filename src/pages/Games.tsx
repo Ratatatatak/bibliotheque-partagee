@@ -121,7 +121,7 @@ const Games = () => {
                 return (
                   <li key={game.id} className="surface flex flex-col overflow-hidden">
                     <div className="flex gap-4 p-4 sm:gap-6 sm:p-6">
-                      <Link to={`/game/${encodeURIComponent(game.id)}`} className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse" tabIndex={-1} aria-hidden="true">
+                      <Link to={`/game/${encodeURIComponent(game.id)}`} className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond" tabIndex={-1} aria-hidden="true">
                         <GameImage src={game.thumbnailUrl ?? game.imageUrl} name={game.name} className="h-32 w-24 rounded-lg sm:h-40 sm:w-32" />
                       </Link>
                       <div className="min-w-0 flex-1">
@@ -129,7 +129,7 @@ const Games = () => {
                           <div className="min-w-0">
                             {game.categories[0] && <p className="page-eyebrow">{game.categories[0]}</p>}
                             <h2 className="mt-1 font-display text-xl font-bold text-brun-cafe-doux">
-                              <Link to={`/game/${encodeURIComponent(game.id)}`} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse">{game.name}</Link>
+                              <Link to={`/game/${encodeURIComponent(game.id)}`} className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond">{game.name}</Link>
                             </h2>
                             {game.isExpansion && <p className="text-xs font-semibold text-bleu-canard-profond">Extension</p>}
                           </div>
@@ -138,7 +138,7 @@ const Games = () => {
                             onClick={() => toggleFavorite.mutate(game.id)}
                             aria-pressed={favorite}
                             aria-label={favorite ? `Retirer ${game.name} des favoris` : `Ajouter ${game.name} aux favoris`}
-                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-gris-perle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse"
+                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg hover:bg-gris-perle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond"
                           >
                             <Heart className={favorite ? 'h-5 w-5 fill-terre-cuite-chaleureuse text-terre-cuite-chaleureuse' : 'h-5 w-5 text-brun-cafe-doux'} />
                           </button>

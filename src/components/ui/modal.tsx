@@ -34,7 +34,7 @@ export const Modal = ({ open, onOpenChange, title, eyebrow, description, childre
             {description && <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">{description}</DialogPrimitive.Description>}
           </div>
           <DialogPrimitive.Close
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-brun-cafe-doux hover:bg-gris-perle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg text-brun-cafe-doux hover:bg-gris-perle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond"
             aria-label="Fermer"
           >
             <X className="h-5 w-5" />

@@ -107,7 +107,7 @@ const Index = () => {
             <ul className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {recent.map((game) => (
                 <li key={game.id}>
-                  <Link to={`/game/${encodeURIComponent(game.id)}`} className="surface group block overflow-hidden hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse">
+                  <Link to={`/game/${encodeURIComponent(game.id)}`} className="surface group block overflow-hidden hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond">
                     <GameImage src={game.thumbnailUrl ?? game.imageUrl} name={game.name} className="aspect-square w-full" />
                     <span className="block p-4 font-display font-bold text-brun-cafe-doux group-hover:underline">{game.name}</span>
                   </Link>

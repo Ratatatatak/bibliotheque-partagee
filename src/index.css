@@ -12,7 +12,7 @@
   --card-foreground: 0 0% 29%;
   --popover: 44 52% 97%;
   --popover-foreground: 0 0% 29%;
-  --primary: 13 69% 63%;             /* Terre cuite */
+  --primary: 193 42% 30%;            /* Bleu canard : boutons principaux lisibles (texte blanc ≈ 7,4:1) */
   --primary-foreground: 0 0% 100%;
   --secondary: 193 42% 30%;          /* Bleu canard */
   --secondary-foreground: 0 0% 100%;
@@ -24,10 +24,10 @@
   --destructive-foreground: 0 0% 100%;
   --border: 79 31% 86%;              /* Gris pierre chaude */
   --input: 79 31% 80%;
-  --ring: 13 69% 63%;
+  --ring: 193 42% 30%;               /* Contour de focus bien visible */
   --radius: 0.5rem;
   --font-body: 'Lato', 'Open Sans', 'Nunito', 'Helvetica Neue', 'Arial', sans-serif;
-  --font-display: 'Cinzel', 'Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', serif;
+  --font-display: 'Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', serif;
 }
 
 .dark {
@@ -75,7 +75,7 @@
 
   /* Typographie - garde les mêmes valeurs */
   --font-body: 'Lato', 'Open Sans', 'Nunito', 'Helvetica Neue', 'Arial', sans-serif;
-  --font-display: 'Cinzel', 'Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', serif;
+  --font-display: 'Playfair Display', 'Merriweather', 'Georgia', 'Times New Roman', serif;
 }
 
 * {
@@ -228,5 +228,5 @@ a.link-interactive:hover {
   .empty-state-title { @apply text-lg font-bold text-brun-cafe-doux; }
   .empty-state-description { @apply mt-2 max-w-xl text-sm text-brun-cafe-doux/80; }
   .field-label { @apply mb-2 block text-sm font-semibold text-brun-cafe-doux; }
-  .native-select { @apply h-12 w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 text-sm text-brun-cafe-doux focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse focus-visible:ring-offset-2; }
+  .native-select { @apply h-12 w-full rounded-md border border-gris-pierre-chaude bg-creme-de-lait px-4 text-sm text-brun-cafe-doux focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bleu-canard-profond focus-visible:ring-offset-2; }
 }
