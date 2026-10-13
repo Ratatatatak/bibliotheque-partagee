@@ -25,6 +25,10 @@ interface AuthContextType {
   localSignIn: (memberId: string) => void;
   localCreateMember: (displayName: string, username: string | null) => void;
   refreshProfile: () => Promise<void>;
+  /** Envoie un email contenant un lien pour choisir un nouveau mot de passe. */
+  requestPasswordReset: (email: string) => Promise<void>;
+  /** Change le mot de passe de la personne connectée (ou arrivée par le lien de réinitialisation). */
+  updatePassword: (password: string) => Promise<void>;
   updateProfile: (displayName: string, username: string | null) => Promise<void>;
 }
 
@@ -149,6 +153,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await supabase!.auth.updateUser({ data: { full_name: name, username: handle } });
       const { data } = await supabase!.auth.getUser();
       await loadSupabaseUser(data.user ?? null);
+    },
+    requestPasswordReset: async (email) => {
+      if (!supabase) throw new Error('La réinitialisation n’est disponible qu’avec Supabase.');
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/nouveau-mot-de-passe`,
+      });
+      if (error) throw error;
+    },
+    updatePassword: async (password) => {
+      if (!supabase) throw new Error('Le mot de passe n’est disponible qu’avec Supabase.');
+      if (password.length < 8) throw new Error('Le mot de passe doit contenir au moins 8 caractères.');
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
     },
     refreshProfile: async () => {
       if (appMode === 'local') {

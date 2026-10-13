@@ -14,6 +14,8 @@ import { MyLoans } from './pages/MyLoans';
 import { Profile } from './pages/Profile';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { NotFound } from './pages/NotFound';
 import { Admin } from './pages/Admin';
 import { Sessions } from './pages/Sessions';
@@ -56,6 +58,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
+            <Route path="/nouveau-mot-de-passe" element={<ResetPassword />} />
             <Route element={<ProtectedLayout />}>
               <Route path="/" element={<Index />} />
               <Route path="/games" element={<Games />} />
