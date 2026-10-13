@@ -11,6 +11,10 @@ export type Member = {
   id: MemberId;
   displayName: string;
   username: string | null;
+  /** Numéro WhatsApp (format international sans « + »), visible des membres connectés. */
+  whatsapp?: string | null;
+  /** Identifiant Messenger (ce qui suit m.me/), visible des membres connectés. */
+  messenger?: string | null;
 };
 
 export type GameSource = {

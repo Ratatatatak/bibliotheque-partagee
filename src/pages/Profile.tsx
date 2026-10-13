@@ -46,6 +46,46 @@ const PasswordSection = () => {
   );
 };
 
+const ContactsSection = () => {
+  const { user, updateContacts } = useAuth();
+  const [whatsapp, setWhatsapp] = useState(user?.whatsapp ? `+${user.whatsapp}` : '');
+  const [messenger, setMessenger] = useState(user?.messenger ? `m.me/${user.messenger}` : '');
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await updateContacts(whatsapp || null, messenger || null);
+      toast.success('Coordonnées enregistrées.');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <section className="surface mb-8 p-6" aria-labelledby="contacts-title">
+      <h2 id="contacts-title" className="font-display text-lg font-bold text-brun-cafe-doux">Me prévenir sur WhatsApp ou Messenger</h2>
+      <p className="mb-4 mt-1 text-sm text-muted-foreground">
+        Quand quelqu’un demande un de vos jeux, le site lui propose de vous envoyer un message tout prêt.
+        Avec vos coordonnées, la conversation avec vous s’ouvre directement. Visibles uniquement par les membres connectés.
+      </p>
+      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="profile-whatsapp" className="field-label">Numéro WhatsApp</label>
+          <Input id="profile-whatsapp" type="tel" inputMode="tel" autoComplete="tel" placeholder="06 12 34 56 78" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
+        </div>
+        <div>
+          <label htmlFor="profile-messenger" className="field-label">Lien Messenger</label>
+          <Input id="profile-messenger" placeholder="m.me/prenom.nom" value={messenger} onChange={(e) => setMessenger(e.target.value)} aria-describedby="messenger-help" />
+          <p id="messenger-help" className="mt-2 text-xs text-muted-foreground">Collez l’adresse de votre profil Facebook (ex. facebook.com/prenom.nom) ou votre lien m.me.</p>
+        </div>
+        <div className="sm:col-span-2"><Button type="submit" variant="outline" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</Button></div>
+      </form>
+    </section>
+  );
+};
+
 const Profile = () => {
   const { user, signOut, updateProfile, mode } = useAuth();
   const collection = useCollection();
@@ -96,6 +136,8 @@ const Profile = () => {
         )}
         {!editing && <Button className="mt-6" variant="outline" onClick={() => setEditing(true)}>Modifier mes informations</Button>}
       </section>
+
+      <ContactsSection />
 
       {mode === 'supabase' && <PasswordSection />}
 

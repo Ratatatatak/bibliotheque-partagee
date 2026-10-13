@@ -33,6 +33,13 @@ Site en production : https://bibliotheque-partagee-tau.vercel.app (hébergement 
 - Retirer un jeu de sa collection l'**archive** : il disparaît du catalogue, mais l'historique des
   prêts passés reste lisible. Un jeu prêté ne peut pas être retiré.
 
+**Prévenir sur WhatsApp ou Messenger** : après une demande, une acceptation, un refus (ou pour un
+rappel de retour), le site propose d'ouvrir WhatsApp ou Messenger avec un message déjà rédigé ; il
+suffit d'appuyer sur « Envoyer ». Rien n'est envoyé automatiquement et aucun service extérieur n'est
+utilisé. Chacun peut renseigner son numéro WhatsApp et son lien Messenger dans son profil (visibles des
+seuls membres connectés) pour que la conversation s'ouvre directement ; sinon, on choisit soi-même le
+contact ou le groupe. Pour Messenger, le message est copié et il faut le coller.
+
 Fonctions complémentaires : favoris, filtres, liste d'attente (« me prévenir quand il revient »),
 import de la collection BoardGameGeek d'un membre, parties prévues/jouées, page membres, administration
 des fiches (conversion des anciennes fiches, correction, mise à jour depuis BGG), échanges définitifs de propriété
@@ -99,6 +106,7 @@ Supabase ou `supabase db push`). Toutes sont non destructives ; la `010` est rej
 | **010** | **Intégrité des prêts et confidentialité** (voir ci-dessous) — prérequis : 001, 002, 003 |
 | 011 | Règles renforcées des échanges — uniquement si 006 est appliquée |
 | 012 | Liste d'attente, fusion et suppression de fiches (administrateurs), correctif pour nommer un administrateur depuis l'éditeur SQL |
+| 013 | Coordonnées facultatives (numéro WhatsApp, lien Messenger) pour se prévenir |
 
 La migration **010** :
 

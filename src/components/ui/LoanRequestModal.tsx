@@ -5,6 +5,8 @@ import { Modal } from '@/components/ui/modal';
 import { repository, useLibraryAction } from '@/hooks/useLibrary';
 import { isValidIsoDate, todayIso } from '@/domain/dates';
 import { memberLabel, type CopyView } from '@/domain/types';
+import { requestMessage } from '@/domain/notify';
+import { NotifyButtons } from '@/components/library/NotifyFriend';
 
 type LoanRequestModalProps = {
   gameName: string;
@@ -22,9 +24,10 @@ const LoanRequestModal = ({ gameName, copy, onClose }: LoanRequestModalProps) =>
   const [returnDate, setReturnDate] = useState(inDays(14));
   const [message, setMessage] = useState('');
   const [dateError, setDateError] = useState<string | null>(null);
+  const [sentText, setSentText] = useState<string | null>(null);
   const request = useLibraryAction(
     (actorId, args: { copyId: string; requestedReturnDate: string; message: string }) => repository.createLoanRequest(actorId, args),
-    { success: 'Demande envoyée. Le propriétaire la verra dans « Mes prêts ».' },
+    { success: 'Demande envoyée.' },
   );
 
   useEffect(() => {
@@ -32,6 +35,7 @@ const LoanRequestModal = ({ gameName, copy, onClose }: LoanRequestModalProps) =>
       setReturnDate(inDays(14));
       setMessage('');
       setDateError(null);
+      setSentText(null);
     }
   }, [copy]);
 
@@ -41,17 +45,27 @@ const LoanRequestModal = ({ gameName, copy, onClose }: LoanRequestModalProps) =>
     if (!isValidIsoDate(returnDate)) return setDateError('Choisissez une date valide.');
     if (returnDate < todayIso()) return setDateError('La date de retour ne peut pas être dans le passé.');
     setDateError(null);
-    request.mutate({ copyId: copy.id, requestedReturnDate: returnDate, message }, { onSuccess: onClose });
+    request.mutate({ copyId: copy.id, requestedReturnDate: returnDate, message }, {
+      onSuccess: () => setSentText(requestMessage({ siteUrl: window.location.origin, gameName, recipientName: copy.owner.displayName, returnDate, note: message })),
+    });
   };
 
   return (
     <Modal
       open={Boolean(copy)}
       onOpenChange={(open) => { if (!open) onClose(); }}
-      eyebrow="Demande d’emprunt"
+      eyebrow={sentText ? 'Demande envoyée' : 'Demande d’emprunt'}
       title={gameName}
-      description={copy ? <>Exemplaire de <strong>{memberLabel(copy.owner)}</strong>. Le prêt ne commence que si le propriétaire accepte.</> : null}
+      description={copy ? (sentText
+        ? <>Prévenez <strong>{copy.owner.displayName}</strong> en lui envoyant ce message :</>
+        : <>Exemplaire de <strong>{memberLabel(copy.owner)}</strong>. Le prêt ne commence que si le propriétaire accepte.</>) : null}
     >
+      {sentText && copy ? (
+        <div className="space-y-6">
+          <NotifyButtons recipient={copy.owner} text={sentText} />
+          <div className="flex justify-end"><Button variant="outline" onClick={onClose}>Terminé</Button></div>
+        </div>
+      ) : (
       <form onSubmit={submit} className="space-y-5" noValidate>
         <div>
           <label htmlFor="return-date" className="field-label">Date de retour souhaitée</label>
@@ -84,6 +98,7 @@ const LoanRequestModal = ({ gameName, copy, onClose }: LoanRequestModalProps) =>
           <Button type="submit" disabled={request.isLoading}>{request.isLoading ? 'Envoi…' : 'Envoyer la demande'}</Button>
         </div>
       </form>
+      )}
     </Modal>
   );
 };

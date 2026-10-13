@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { appMode, supabase } from '@/integrations/supabase/client';
 import { addMember } from '@/domain/localState';
 import type { Member } from '@/domain/types';
+import { normalizeMessenger, normalizePhone } from '@/domain/notify';
 import {
   importLegacyData,
   readCurrentLocalMemberId,
@@ -30,6 +31,8 @@ interface AuthContextType {
   /** Change le mot de passe de la personne connectée (ou arrivée par le lien de réinitialisation). */
   updatePassword: (password: string) => Promise<void>;
   updateProfile: (displayName: string, username: string | null) => Promise<void>;
+  /** Numéro WhatsApp et identifiant Messenger (facultatifs), pour être prévenu par les membres. */
+  updateContacts: (whatsapp: string | null, messenger: string | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -57,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const meta = sessionUser.user_metadata ?? {};
-    const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', sessionUser.id).maybeSingle();
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', sessionUser.id).maybeSingle();
     const fullName = (profile?.full_name as string | null) ?? (meta.full_name as string | undefined) ?? null;
     const username = (profile?.username as string | null) ?? (meta.username as string | undefined) ?? null;
     setUser({
@@ -65,6 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: sessionUser.email ?? null,
       displayName: fullName || username || sessionUser.email || 'Membre',
       username,
+      whatsapp: (profile?.whatsapp_phone as string | null | undefined) ?? null,
+      messenger: (profile?.messenger_handle as string | null | undefined) ?? null,
       isLocal: false,
     });
   }, []);
@@ -151,6 +156,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase!.from('profiles').update({ full_name: name, username: handle, updated_at: new Date().toISOString() }).eq('id', user.id);
       if (error) throw new Error(error.code === '23505' ? 'Ce pseudo est déjà utilisé.' : error.message);
       await supabase!.auth.updateUser({ data: { full_name: name, username: handle } });
+      const { data } = await supabase!.auth.getUser();
+      await loadSupabaseUser(data.user ?? null);
+    },
+    updateContacts: async (rawWhatsapp, rawMessenger) => {
+      if (!user) throw new Error('Connectez-vous d’abord.');
+      const whatsapp = rawWhatsapp?.trim() ? normalizePhone(rawWhatsapp) : null;
+      if (rawWhatsapp?.trim() && !whatsapp) throw new Error('Numéro WhatsApp non reconnu. Exemple : 06 12 34 56 78 ou +33 6 12 34 56 78.');
+      const messenger = rawMessenger?.trim() ? normalizeMessenger(rawMessenger) : null;
+      if (rawMessenger?.trim() && !messenger) throw new Error('Lien Messenger non reconnu. Exemple : m.me/prenom.nom');
+      if (appMode === 'local') {
+        updateLocalState((state) => ({ state: { ...state, members: state.members.map((m) => (m.id === user.id ? { ...m, whatsapp, messenger } : m)) }, result: undefined }));
+        setUser(readLocalUser());
+        return;
+      }
+      const { error } = await supabase!.from('profiles').update({ whatsapp_phone: whatsapp, messenger_handle: messenger, updated_at: new Date().toISOString() }).eq('id', user.id);
+      if (error) {
+        if (error.code === '42703' || error.code === 'PGRST204') throw new Error('La base n’est pas à jour : appliquez la migration 013_contacts.sql.');
+        throw new Error(error.message);
+      }
       const { data } = await supabase!.auth.getUser();
       await loadSupabaseUser(data.user ?? null);
     },

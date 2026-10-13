@@ -267,4 +267,11 @@ describe('liste d’attente et administration des fiches (012)', () => {
     expect(await as(BRUNO, `UPDATE public.games SET name = 'Piraté' WHERE id = '204583' RETURNING id`)).toEqual([]);
     expect((await as(ALICE, `UPDATE public.games SET name = 'Kingdomino (2016)' WHERE id = '204583' RETURNING name`))[0].name).toBe('Kingdomino (2016)');
   });
+  it('chacun renseigne ses propres coordonnées WhatsApp / Messenger, visibles des seuls membres', async () => {
+    await as(BRUNO, `UPDATE public.profiles SET whatsapp_phone = '33612345678', messenger_handle = 'bruno.test' WHERE id = '${BRUNO}'`);
+    expect(await as(BRUNO, `UPDATE public.profiles SET whatsapp_phone = '33600000000' WHERE id = '${CHLOE}' RETURNING id`)).toEqual([]);
+    await expectError(as(BRUNO, `UPDATE public.profiles SET whatsapp_phone = '06 12' WHERE id = '${BRUNO}'`), /profiles_whatsapp_phone_format/);
+    expect((await as(CHLOE, `SELECT whatsapp_phone, messenger_handle FROM public.profiles WHERE id = '${BRUNO}'`))[0]).toEqual({ whatsapp_phone: '33612345678', messenger_handle: 'bruno.test' });
+    expect(await as(null, `SELECT whatsapp_phone FROM public.profiles`)).toEqual([]);
+  });
 });
