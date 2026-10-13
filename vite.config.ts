@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
@@ -15,6 +16,13 @@ function bggApiProxy(token: string): Plugin {
         }
 
         const path = request.url?.replace(/^\/api\/bgg/, '') || '/'
+        const endpoint = path.replace(/^\//, '').split('?')[0]
+        if (!['search', 'thing'].includes(endpoint)) {
+          response.statusCode = 404
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify({ error: 'Point d’accès BGG non autorisé' }))
+          return
+        }
         const bggUrl = `https://boardgamegeek.com/xmlapi2${path}`
 
         try {
@@ -46,6 +54,11 @@ export default defineConfig(({ mode }) => {
     alias: {
       '@': resolve(__dirname, './src'),
     },
+  },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts', 'supabase/tests/**/*.test.ts'],
+    testTimeout: 60000,
   },
   build: {
     rollupOptions: {

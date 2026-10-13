@@ -24,7 +24,7 @@ const SEO = ({ title, description, path }: SEOProps) => {
       canonicalLink.setAttribute('rel', 'canonical');
       document.head.appendChild(canonicalLink);
     }
-    canonicalLink.setAttribute('href', `https://bibliotheque-partagee.vercel.app${path}`);
+    canonicalLink.setAttribute('href', `https://bibliotheque-partagee-tau.vercel.app${path}`);
   }, [description, path, title]);
 
   return null;

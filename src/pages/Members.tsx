@@ -1,12 +1,62 @@
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Users } from 'lucide-react';
-import { gameCatalog } from '@/data/gameCatalog';
+import { useGames, useMembers } from '@/hooks/useLibrary';
+import { useAuth } from '@/hooks/useAuth';
+import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/library/PageState';
 
-const members = [
-  { name: 'Marie', games: gameCatalog.slice(0, 4).map(game => game.name), color: 'bg-emerald-100 text-emerald-800' },
-  { name: 'Thomas', games: gameCatalog.slice(4, 8).map(game => game.name), color: 'bg-amber-100 text-amber-800' },
-  { name: 'Léa', games: gameCatalog.slice(1, 3).map(game => game.name), color: 'bg-rose-100 text-rose-800' },
-].sort((a, b) => a.name.localeCompare(b.name));
+const Members = () => {
+  const { user } = useAuth();
+  const members = useMembers();
+  const games = useGames();
 
-const Members = () => <main className="min-h-screen bg-background"><div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8"><div className="mb-8"><p className="text-sm font-semibold uppercase tracking-wider text-primary">Le groupe</p><h1 className="mt-1 text-3xl font-bold">Membres</h1><p className="mt-2 text-muted-foreground">Les personnes qui font vivre notre ludothèque.</p></div><div className="grid gap-5 md:grid-cols-3">{members.map(member => <article key={member.name} className="rounded-lg border bg-card p-5 shadow-sm"><div className={`flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold ${member.color}`}>{member.name.slice(0, 1)}</div><h2 className="mt-4 text-xl font-semibold">{member.name}</h2><p className="mt-1 text-sm text-muted-foreground">{member.games.length} jeux partagés</p><div className="mt-4 flex flex-wrap gap-2">{member.games.map(game => <span key={game} className="rounded-full bg-muted px-2.5 py-1 text-xs">{game}</span>)}</div></article>)}</div></div></main>;
+  const gamesByOwner = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }[]>();
+    for (const game of games.data ?? []) {
+      for (const copy of game.copies) {
+        map.set(copy.ownerId, [...(map.get(copy.ownerId) ?? []), { id: game.id, name: game.name }]);
+      }
+    }
+    return map;
+  }, [games.data]);
+
+  if (members.isLoading || games.isLoading) return <LoadingState label="Chargement des membres…" />;
+  if (members.isError || games.isError) return <div className="page-container"><ErrorState error={members.error ?? games.error} onRetry={() => { void members.refetch(); void games.refetch(); }} /></div>;
+
+  const list = members.data ?? [];
+  return (
+    <div className="page-container">
+      <PageHeader eyebrow="Le groupe" title="Membres" lead="Les personnes qui font vivre la ludothèque et les jeux qu’elles partagent." />
+      {list.length === 0 ? <EmptyState icon={<Users className="h-6 w-6" />} title="Aucun membre pour l’instant" /> : (
+        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((member) => {
+            const owned = (gamesByOwner.get(member.id) ?? []).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+            return (
+              <li key={member.id} className="surface p-6">
+                <div className="flex items-center gap-4">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-terre-cuite-chaleureuse/20 font-display text-xl font-bold text-brun-cafe-doux" aria-hidden="true">
+                    {member.displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="truncate font-display text-lg font-bold text-brun-cafe-doux">{member.displayName}{member.id === user?.id && <span className="ml-2 text-sm font-sans font-semibold text-bleu-canard-profond">(vous)</span>}</h2>
+                    {member.username && <p className="text-sm text-muted-foreground">@{member.username}</p>}
+                  </div>
+                </div>
+                <p className="mt-4 text-sm font-semibold text-brun-cafe-doux">{owned.length} jeu{owned.length > 1 ? 'x' : ''} partagé{owned.length > 1 ? 's' : ''}</p>
+                {owned.length > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {owned.map((game) => (
+                      <li key={game.id}><Link to={`/game/${encodeURIComponent(game.id)}`} className="inline-flex min-h-8 items-center rounded-full bg-gris-perle px-3 text-xs font-semibold text-brun-cafe-doux hover:bg-gris-pierre-chaude">{game.name}</Link></li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 export { Members };

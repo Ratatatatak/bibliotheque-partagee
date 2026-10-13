@@ -1,147 +1,94 @@
-import { useState } from 'react';
-import { NavLink, Link, useLocation } from 'react-router-dom';
-import { Library, Menu, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Dices, LogOut, Menu, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useMyActivity } from '@/hooks/useLibrary';
+import { cn } from '@/lib/utils';
 
 const navLinks = [
   { href: '/games', label: 'Ludothèque' },
   { href: '/my-collection', label: 'Ma collection' },
   { href: '/my-loans', label: 'Mes prêts' },
-  { href: '/sessions', label: 'Nos parties' },
-  { href: '/members', label: 'Nos membres' },
+  { href: '/sessions', label: 'Parties' },
+  { href: '/members', label: 'Membres' },
   { href: '/profile', label: 'Mon profil' },
 ];
 
+const linkClass = ({ isActive }: { isActive: boolean }) => cn(
+  'relative flex min-h-12 items-center rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse',
+  isActive ? 'bg-terre-cuite-chaleureuse/15 text-brun-cafe-doux' : 'text-brun-cafe-doux/80 hover:bg-terre-cuite-chaleureuse/10 hover:text-brun-cafe-doux',
+);
+
 const Header = () => {
-  const location = useLocation();
+  const { user, signOut, mode } = useAuth();
+  const { data: activity } = useMyActivity();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const { user } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+
+  // Nombre d'actions qui attendent la personne connectée (demandes reçues à traiter).
+  const pendingForMe = activity?.requests.filter((r) => r.status === 'pending' && r.ownerId === user?.id).length ?? 0;
+
+  const renderLinks = () => navLinks.map((link) => (
+    <NavLink key={link.href} to={link.href} className={linkClass}>
+      {link.label}
+      {link.href === '/my-loans' && pendingForMe > 0 && (
+        <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-terre-cuite-chaleureuse px-2 text-xs font-bold text-white">
+          {pendingForMe}<span className="sr-only"> demande{pendingForMe > 1 ? 's' : ''} à traiter</span>
+        </span>
+      )}
+    </NavLink>
+  ));
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gris-pierre-chaude/40 bg-creme-de-lait/95 backdrop-blur-xl shadow-md">
-      <div className="mx-auto flex min-h-[4.5rem] w-full max-w-7xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
-        {/* Brand/logo */}
-        <Link to="/" className="flex min-w-0 shrink-0 items-center gap-3" onClick={() => setMenuOpen(false)}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-terre-cuite-chaleureuse/20 text-terre-cuite-chaleureuse shadow-lg shadow-terre-cuite-chaleureuse/20">
-            <Library className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold tracking-wider text-terre-cuite-chaleureuse/80">bibliotheque</span>
-            <span className="font-serif text-xl font-bold text-brun-cafe-doux tracking-tight">
-              Partagée
-            </span>
-          </div>
+    <header className="sticky top-0 z-40 border-b border-gris-pierre-chaude bg-creme-de-lait/95 backdrop-blur">
+      <div className="mx-auto flex min-h-[72px] w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <Link to="/" className="flex min-h-12 shrink-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-terre-cuite-chaleureuse/20 text-brun-cafe-doux">
+            <Dices className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <span className="font-display text-lg font-bold leading-tight text-brun-cafe-doux">
+            Ludothèque<span className="block text-xs font-sans font-semibold uppercase tracking-wider text-bleu-canard-profond">du groupe</span>
+          </span>
         </Link>
 
-        {/* Desktop menu */}
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 xl:flex" aria-label="Navigation principale">
-          {navLinks.map((link) => (
-            <NavLink
-              key={link.href}
-              to={link.href}
-              aria-current="page"
-              className={({ isActive }) => `
-                relative rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ease-out-doux
-                ${isActive
-                  ? 'bg-terre-cuite-chaleureuse/20 text-terre-cuite-chaleureuse shadow-md'
-                  : 'text-brun-cafe-doux/60 hover:text-terre-cuite-chaleureuse/90 hover:bg-terre-cuite-chaleureuse/5'}
-              `}
-            >
-              {link.label}
-            </NavLink>
-          ))}
-        </nav>
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="Navigation principale">{renderLinks()}</nav>
 
-        {/* User profile */}
-        <div className="hidden md:block">
-          <div className="ml-4 flex items-center md:ml-6">
-            <div className="relative">
-              <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="p-2 rounded-full hover:bg-terre-cuite-chaleureuse/20 focus:outline-none focus:ring-2 focus:ring-terre-cuite-chaleureuse/20"
-              >
-                <span className="h-6 w-6 bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse rounded-full flex items-center justify-center">
-                  {user?.user_metadata?.username ? (
-                    <>
-                      <span className="text-xs">{`@${user.user_metadata.username}`}</span>
-                      <span className="pointer-events-none absolute -right-1 -top-1 h-2 w-2 bg-vert-sauge-doux rounded-full" />
-                    </>
-                  ) : (
-                    <span className="text-xs">👤</span>
-                  )}
-                </span>
-              </button>
-              {/* Mobile menu dropdown */}
-              {isOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-creme-de-lait rounded-xl shadow-xl border border-gris-pierre-chaude z-20">
-                  <div className="space-y-1">
-                    {navLinks.map((link) => (
-                      <NavLink
-                        key={link.href}
-                        to={link.href}
-                        className={({ isActive }) =>
-                          isActive
-                            ? 'block px-4 py-3 text-sm font-medium text-brun-cafe-doux bg-terre-cuite-chaleureuse/20'
-                            : 'block px-4 py-3 text-sm font-medium text-brun-cafe-doux hover:bg-gris-pierre-chaude/50 hover:text-terre-cuite-chaleureuse'}
-                      >
-                        {link.label}
-                      </NavLink>
-                    ))}
-                    <NavLink
-                      to={user ? '/profile' : '/login'}
-                      onClick={() => setIsOpen(false)}
-                      className="block px-4 py-3 text-sm font-medium text-brun-cafe-doux hover:bg-gris-pierre-chaude/50"
-                    >
-                      {user ? 'Mon profil' : 'Se connecter'}
-                    </NavLink>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="hidden items-center gap-2 lg:flex">
+          {mode === 'local' && <span className="rounded-full border border-warning-doux bg-warning-doux/20 px-3 py-1 text-xs font-semibold text-brun-cafe-doux">Mode local</span>}
+          {user && (
+            <button type="button" onClick={() => void signOut()} className="flex h-12 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-brun-cafe-doux hover:bg-gris-perle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse" title={`Connecté en tant que ${user.displayName}`}>
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              <span className="sr-only">Se déconnecter ({user.displayName})</span>
+            </button>
+          )}
         </div>
 
-        {/* Mobile menu button (visible uniquement sur mobile) */}
-        <div className="md:hidden">
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="p-2 rounded-full hover:bg-terre-cuite-chaleureuse/20 focus:outline-none focus:ring-2 focus:ring-terre-cuite-chaleureuse/20"
-          >
-            <span className="h-6 w-6 bg-terre-cuite-chaleureuse/10 text-terre-cuite-chaleureuse rounded-full flex items-center justify-center">
-              ≡
-            </span>
-          </button>
-        </div>
+        <button
+          type="button"
+          className="relative flex h-12 w-12 items-center justify-center rounded-lg text-brun-cafe-doux hover:bg-gris-perle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terre-cuite-chaleureuse lg:hidden"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+          aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+        >
+          {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {!menuOpen && pendingForMe > 0 && <span className="absolute right-2 top-2 h-3 w-3 rounded-full bg-terre-cuite-chaleureuse" aria-hidden="true" />}
+        </button>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
-        <div className="border-t border-gris-pierre-chaude/40 bg-creme-de-lait px-4 py-4 shadow-lg xl:hidden">
-          <nav className="mx-auto flex max-w-7xl flex-col gap-1" aria-label="Navigation mobile">
-            {navLinks.map((link) => (
-              <NavLink
-                key={link.href}
-                to={link.href}
-                onClick={() => setMenuOpen(false)}
-                className={({ isActive }) => `
-                  rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200 ease-out-doux
-                  ${isActive
-                    ? 'bg-terre-cuite-chaleureuse/20 text-terre-cuite-chaleureuse'
-                    : 'text-brun-cafe-doux hover:bg-terre-cuite-chaleureuse/20'}
-                `}
-              >
-                {link.label}
-              </NavLink>
-            ))}
-            <NavLink
-              to={user ? '/profile' : '/login'}
-              onClick={() => setMenuOpen(false)}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-brun-cafe-doux hover:bg-gris-pierre-chaude/50"
-            >
-              {user ? 'Mon profil' : 'Se connecter'}
-            </NavLink>
+        <div id="mobile-menu" className="border-t border-gris-pierre-chaude bg-creme-de-lait px-4 py-4 lg:hidden">
+          <nav className="flex flex-col gap-1" aria-label="Navigation mobile">
+            {renderLinks()}
+            {user && (
+              <button type="button" onClick={() => void signOut()} className="flex min-h-12 items-center gap-2 rounded-lg px-4 text-left text-sm font-semibold text-brun-cafe-doux hover:bg-gris-perle">
+                <LogOut className="h-4 w-4" aria-hidden="true" /> Se déconnecter ({user.displayName})
+              </button>
+            )}
           </nav>
+          {mode === 'local' && <p className="mt-3 px-4 text-xs text-muted-foreground">Mode local : les données restent dans ce navigateur.</p>}
         </div>
       )}
     </header>

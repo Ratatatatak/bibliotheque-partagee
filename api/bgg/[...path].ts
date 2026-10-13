@@ -5,6 +5,8 @@ type VercelResponse = {
   end(body: string): void;
 };
 
+const ALLOWED_ENDPOINTS = new Set(['search', 'thing']);
+
 export default async function handler(request: VercelRequest, response: VercelResponse): Promise<void> {
   const token = process.env.BGG_API_TOKEN;
 
@@ -17,6 +19,15 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
   const requestUrl = new URL(request.url || '/', 'https://localhost');
   const endpoint = requestUrl.pathname.replace(/^\/api\/bgg\/?/, '');
+
+  // Seuls les deux points d'accès utilisés par l'application sont relayés, pour
+  // que ce relais (qui utilise le jeton du groupe) ne serve pas à autre chose.
+  if (!ALLOWED_ENDPOINTS.has(endpoint)) {
+    response.statusCode = 404;
+    response.setHeader('Content-Type', 'application/json');
+    response.end(JSON.stringify({ error: 'Point d’accès BGG non autorisé' }));
+    return;
+  }
   const upstreamUrl = new URL(`https://boardgamegeek.com/xmlapi2/${endpoint}`);
   upstreamUrl.search = requestUrl.search;
 
