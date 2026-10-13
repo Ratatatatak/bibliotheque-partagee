@@ -7,7 +7,6 @@ import { Modal } from '@/components/ui/modal';
 import { repository, useCollection, useLibraryAction } from '@/hooks/useLibrary';
 import { bggService } from '@/lib/bggService';
 import { bggDetailsToGameInput, type BGGGameDetails, type BGGSearchResult } from '@/integrations/bgg/client';
-import { catalogGameToInput, gameCatalog } from '@/data/gameCatalog';
 import { GameImage } from '@/components/library/GameImage';
 import { BggCollectionImport } from '@/components/library/BggCollectionImport';
 import { CopyStatusBadge } from '@/components/library/CopyStatusBadge';
@@ -182,7 +181,6 @@ const CopyCard = ({ gameId, gameName, imageUrl, copy, waitingCount }: { gameId: 
 
 const MyCollection = () => {
   const collection = useCollection();
-  const [legacyId, setLegacyId] = useState('');
   const add = useLibraryAction((actorId, input: GameInput) => repository.addGameToCollection(actorId, input), {
     success: (input) => `${input.name} a été ajouté à votre collection.`,
   });
@@ -198,23 +196,6 @@ const MyCollection = () => {
         <h2 id="add-title" className="mb-4 font-display text-xl font-bold text-brun-cafe-doux">Ajouter un jeu</h2>
         <BggSearch ownedIds={ownedIds} adding={add.isLoading} onAdd={(input) => add.mutate(input)} />
         <BggCollectionImport ownedIds={ownedIds} />
-        <details className="mt-6 rounded-lg border border-dashed border-gris-pierre-chaude p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-brun-cafe-doux">BoardGameGeek indisponible ? Choisir dans l’ancien catalogue (non vérifié)</summary>
-          <p className="mt-2 text-sm text-muted-foreground">Ces fiches proviennent d’une ancienne liste de l’application, sans source vérifiée. Préférez la recherche BoardGameGeek quand elle fonctionne.</p>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <label htmlFor="legacy" className="sr-only">Jeu de l’ancien catalogue</label>
-            <select id="legacy" className="native-select" value={legacyId} onChange={(e) => setLegacyId(e.target.value)}>
-              <option value="">Sélectionnez un jeu…</option>
-              {[...gameCatalog].sort((a, b) => a.name.localeCompare(b.name, 'fr')).map((g) => (
-                <option key={g.id} value={g.id} disabled={ownedIds.has(g.id)}>{g.name}{ownedIds.has(g.id) ? ' (déjà ajouté)' : ''}</option>
-              ))}
-            </select>
-            <Button disabled={!legacyId || add.isLoading} onClick={() => {
-              const legacy = gameCatalog.find((g) => g.id === legacyId);
-              if (legacy) add.mutate(catalogGameToInput(legacy), { onSuccess: () => setLegacyId('') });
-            }}>Ajouter</Button>
-          </div>
-        </details>
       </section>
 
       {collection.isLoading ? <LoadingState /> : collection.isError ? <ErrorState error={collection.error} onRetry={() => void collection.refetch()} /> : copies.length === 0 ? (

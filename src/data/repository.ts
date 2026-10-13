@@ -40,6 +40,8 @@ export interface LibraryRepository {
   /** Tous les exemplaires (y compris retirés) d'un membre pour sa page collection. */
   listCollection(memberId: MemberId): Promise<GameWithCopies[]>;
 
+  /** Crée une fiche sans exemplaire si elle n'existe pas encore (sans écraser une fiche existante). */
+  createGame(actorId: MemberId, input: GameInput): Promise<void>;
   /** Crée la fiche si elle n'existe pas (sans écraser une fiche existante) puis ajoute un exemplaire. */
   addGameToCollection(actorId: MemberId, input: GameInput): Promise<void>;
   setCopyAvailability(actorId: MemberId, copyId: string, available: boolean): Promise<void>;

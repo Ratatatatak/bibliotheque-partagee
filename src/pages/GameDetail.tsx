@@ -66,7 +66,7 @@ const GameDetail = () => {
             {g.origin === 'legacy-catalog' && (
               <p className="mt-4 flex gap-3 rounded-lg border border-warning-doux bg-warning-doux/15 p-4 text-sm text-brun-cafe-doux" role="note">
                 <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden="true" />
-                Fiche issue de l’ancien catalogue de l’application : ces informations n’ont pas été vérifiées auprès d’une source.
+                Ancienne fiche, pas encore remplacée par la fiche BoardGameGeek : ces informations n’ont pas été vérifiées. Un administrateur peut la convertir depuis la page Administration.
               </p>
             )}
 
