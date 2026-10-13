@@ -117,6 +117,9 @@ const Login = () => {
         </div>
         <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Connexion en cours…' : 'Se connecter'}</Button>
       </form>
+      <p className="mt-4 text-center text-sm">
+        <Link to="/mot-de-passe-oublie" className="font-semibold text-bleu-canard-profond underline underline-offset-4">Mot de passe oublié ?</Link>
+      </p>
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Pas encore de compte ? <Link to="/register" className="font-semibold text-bleu-canard-profond underline underline-offset-4">S’inscrire</Link>
       </p>

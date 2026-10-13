@@ -15,6 +15,37 @@ const Stat = ({ value, label, to }: { value: number | string; label: string; to:
   </Link>
 );
 
+const PasswordSection = () => {
+  const { updatePassword } = useAuth();
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await updatePassword(password);
+      toast.success('Mot de passe modifié.');
+      setPassword('');
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <section className="surface mb-8 p-6" aria-labelledby="password-title">
+      <h2 id="password-title" className="mb-4 font-display text-lg font-bold text-brun-cafe-doux">Mot de passe</h2>
+      <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <label htmlFor="profile-password" className="field-label">Nouveau mot de passe (8 caractères minimum)</label>
+          <Input id="profile-password" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </div>
+        <Button type="submit" variant="outline" disabled={saving || password.length < 8}>{saving ? 'Enregistrement…' : 'Changer le mot de passe'}</Button>
+      </form>
+    </section>
+  );
+};
+
 const Profile = () => {
   const { user, signOut, updateProfile, mode } = useAuth();
   const collection = useCollection();
@@ -64,6 +95,8 @@ const Profile = () => {
         )}
         {!editing && <Button className="mt-6" variant="outline" onClick={() => setEditing(true)}>Modifier mes informations</Button>}
       </section>
+
+      {mode === 'supabase' && <PasswordSection />}
 
       <section aria-labelledby="stats" className="mb-8">
         <h2 id="stats" className="mb-4 font-display text-lg font-bold text-brun-cafe-doux">En résumé</h2>
