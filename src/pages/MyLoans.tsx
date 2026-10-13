@@ -12,6 +12,8 @@ import { ErrorState, LoadingState, PageHeader } from '@/components/library/PageS
 import { daysUntil, formatDate, todayIso } from '@/domain/dates';
 import { memberLabel, type LoanRequestView, type LoanView } from '@/domain/types';
 import { cn } from '@/lib/utils';
+import { NotifyDialog, type NotifyTarget } from '@/components/library/NotifyFriend';
+import { acceptedMessage, refusedMessage, reminderMessage, requestMessage } from '@/domain/notify';
 
 const Section = ({ id, title, icon, count, children, empty }: { id: string; title: string; icon: ReactNode; count: number; children: ReactNode; empty: string }) => (
   <section aria-labelledby={id} className="mb-10">
@@ -67,6 +69,8 @@ const MyLoans = () => {
   const exchanges = useExchanges();
   const [extendTarget, setExtendTarget] = useState<LoanView | null>(null);
   const [returnTarget, setReturnTarget] = useState<LoanView | null>(null);
+  const [notify, setNotify] = useState<NotifyTarget | null>(null);
+  const siteUrl = window.location.origin;
 
   const accept = useLibraryAction((a, r: LoanRequestView) => repository.acceptLoanRequest(a, r.id), { success: (r) => `Prêt confirmé : ${r.game.name} pour ${r.requester.displayName}.` });
   const refuse = useLibraryAction((a, r: LoanRequestView) => repository.refuseLoanRequest(a, r.id), { success: 'Demande refusée.' });
@@ -96,8 +100,14 @@ const MyLoans = () => {
       <Section id="received" title="Demandes reçues à traiter" icon={<Inbox className="h-5 w-5" />} count={received.length} empty="Aucune demande en attente pour vos jeux.">
         {received.map((r) => (
           <Row key={r.id} game={r.game} actions={<>
-            <Button size="sm" disabled={busy} onClick={() => accept.mutate(r)}>Accepter le prêt</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => refuse.mutate(r)}>Refuser</Button>
+            <Button size="sm" disabled={busy} onClick={() => accept.mutate(r, { onSuccess: () => setNotify({
+              recipient: r.requester, title: `Prêt confirmé : ${r.game.name}`,
+              text: acceptedMessage({ siteUrl, gameName: r.game.name, recipientName: r.requester.displayName, returnDate: r.requestedReturnDate }),
+            }) })}>Accepter le prêt</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => refuse.mutate(r, { onSuccess: () => setNotify({
+              recipient: r.requester, title: `Demande refusée : ${r.game.name}`,
+              text: refusedMessage({ siteUrl, gameName: r.game.name, recipientName: r.requester.displayName }),
+            }) })}>Refuser</Button>
           </>}>
             <p><strong>{memberLabel(r.requester)}</strong> souhaite emprunter votre exemplaire jusqu’au <strong>{formatDate(r.requestedReturnDate)}</strong>.</p>
             {r.message && <p className="italic text-muted-foreground">« {r.message} »</p>}
@@ -111,6 +121,12 @@ const MyLoans = () => {
           <Row key={l.id} game={l.game} actions={<>
             <Button size="sm" onClick={() => setReturnTarget(l)}>J’ai récupéré mon jeu</Button>
             <Button size="sm" variant="outline" onClick={() => setExtendTarget(l)}>Modifier l’échéance</Button>
+            {daysUntil(l.expectedReturnDate) <= 2 && (
+              <Button size="sm" variant="ghost" onClick={() => setNotify({
+                recipient: l.borrower, title: `Rappel : ${l.game.name}`,
+                text: reminderMessage({ siteUrl, gameName: l.game.name, recipientName: l.borrower.displayName, returnDate: l.expectedReturnDate }),
+              })}>Envoyer un rappel</Button>
+            )}
           </>}>
             <p>Chez <strong>{memberLabel(l.borrower)}</strong> depuis le {formatDate(l.startDate)}.</p>
             <DueDate loan={l} />
@@ -130,7 +146,13 @@ const MyLoans = () => {
 
       <Section id="sent" title="Mes demandes en attente" icon={<Send className="h-5 w-5" />} count={sent.length} empty="Aucune demande envoyée en attente.">
         {sent.map((r) => (
-          <Row key={r.id} game={r.game} actions={<Button size="sm" variant="outline" disabled={busy} onClick={() => cancel.mutate(r)}>Annuler ma demande</Button>}>
+          <Row key={r.id} game={r.game} actions={<>
+            <Button size="sm" variant="outline" onClick={() => setNotify({
+              recipient: r.owner, title: `Prévenir ${r.owner.displayName.split(/\s+/)[0]}`,
+              text: requestMessage({ siteUrl, gameName: r.game.name, recipientName: r.owner.displayName, returnDate: r.requestedReturnDate, note: r.message }),
+            })}>Prévenir {r.owner.displayName.split(/\s+/)[0]}</Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => cancel.mutate(r)}>Annuler ma demande</Button>
+          </>}>
             <p>Demandé à <strong>{memberLabel(r.owner)}</strong>, retour proposé le {formatDate(r.requestedReturnDate)}.</p>
             <RequestStatusBadge status={r.status} />
           </Row>
@@ -197,6 +219,7 @@ const MyLoans = () => {
         )}
       </section>
 
+      <NotifyDialog target={notify} onClose={() => setNotify(null)} />
       <ExtendDialog key={extendTarget?.id ?? "aucun"} loan={extendTarget} onClose={() => setExtendTarget(null)} />
       <Modal open={Boolean(returnTarget)} onOpenChange={(open) => { if (!open) setReturnTarget(null); }} title="Confirmer le retour ?" description={returnTarget ? `Confirmez que ${returnTarget.borrower.displayName} vous a rendu ${returnTarget.game.name}. Le jeu redeviendra disponible pour le groupe.` : undefined}>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

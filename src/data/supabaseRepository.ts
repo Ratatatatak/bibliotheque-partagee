@@ -49,6 +49,8 @@ const mapMember = (row: Row): Member => ({
   id: String(row.id),
   displayName: str(row.full_name) ?? str(row.username) ?? 'Membre du groupe',
   username: str(row.username),
+  whatsapp: str(row.whatsapp_phone),
+  messenger: str(row.messenger_handle),
 });
 
 const mapGame = (row: Row, sources: GameSource[] = []): Game => {
