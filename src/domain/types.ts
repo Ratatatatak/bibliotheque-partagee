@@ -59,6 +59,8 @@ export type GameCopy = {
   status: CopyStatus;
   notes: string | null;   // remarques propres au groupe (jamais écrasées par une synchronisation)
   createdAt: string;
+  /** Date de retrait de la collection. L'exemplaire est conservé pour l'historique des prêts. */
+  archivedAt: string | null;
 };
 
 export type RequestStatus = 'pending' | 'accepted' | 'refused' | 'cancelled';

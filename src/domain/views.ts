@@ -35,7 +35,7 @@ const gameSummary = (games: Map<string, Game>, gameId: string) => {
 export const buildCopyViews = (snapshot: Snapshot): CopyView[] => {
   const members = indexBy(snapshot.members);
   const member = (id: string) => members.get(id) ?? unknownMember(id);
-  return snapshot.copies.map((copy) => {
+  return snapshot.copies.filter((copy) => !copy.archivedAt).map((copy) => {
     const loan = snapshot.loans.find((item) => item.copyId === copy.id && item.status === 'active') ?? null;
     const owner = member(copy.ownerId);
     const activeLoan = loan ? { ...loan, borrower: member(loan.borrowerId) } : null;

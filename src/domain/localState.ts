@@ -63,7 +63,7 @@ const requireMember = (state: LocalState, memberId: MemberId) => {
 
 const requireCopy = (state: LocalState, copyId: string) => {
   const copy = state.copies.find((item) => item.id === copyId);
-  if (!copy) throw new DomainError('Cet exemplaire n’existe plus.');
+  if (!copy || copy.archivedAt) throw new DomainError('Cet exemplaire n’existe plus.');
   return copy;
 };
 
@@ -109,10 +109,11 @@ export const upsertGame = (state: LocalState, input: GameInput, clock: Clock = d
 export const addCopy = (state: LocalState, actorId: MemberId, gameId: string, clock: Clock = defaultClock) => {
   requireMember(state, actorId);
   if (!state.games.some((game) => game.id === gameId)) throw new DomainError('Fiche de jeu introuvable.');
-  if (state.copies.some((copy) => copy.ownerId === actorId && copy.gameId === gameId)) {
+  if (state.copies.some((copy) => copy.ownerId === actorId && copy.gameId === gameId && !copy.archivedAt)) {
     throw new DomainError('Ce jeu est déjà dans votre collection.');
   }
   const copy: GameCopy = {
+    archivedAt: null,
     id: clock.newId('copy'),
     gameId,
     ownerId: actorId,
@@ -124,7 +125,7 @@ export const addCopy = (state: LocalState, actorId: MemberId, gameId: string, cl
 };
 
 /** Le propriétaire peut rendre son exemplaire indisponible / disponible, sauf s'il est prêté. */
-export const setCopyAvailability = (state: LocalState, actorId: MemberId, copyId: string, available: boolean) => {
+export const setCopyAvailability = (state: LocalState, actorId: MemberId, copyId: string, available: boolean, clock: Clock = defaultClock) => {
   const copy = requireCopy(state, copyId);
   if (copy.ownerId !== actorId) throw new DomainError('Seul le propriétaire peut modifier cet exemplaire.');
   if (copy.status === 'lent' || activeLoanForCopy(state, copyId)) {
@@ -134,7 +135,7 @@ export const setCopyAvailability = (state: LocalState, actorId: MemberId, copyId
   let requests = state.requests;
   if (!available) {
     // Les demandes en attente deviennent caduques si le propriétaire retire le jeu du prêt.
-    const now = new Date().toISOString();
+    const now = clock.now().toISOString();
     requests = requests.map((request) =>
       request.copyId === copyId && request.status === 'pending' ? { ...request, status: 'refused', respondedAt: now } : request);
   }
@@ -148,15 +149,18 @@ export const updateCopyNotes = (state: LocalState, actorId: MemberId, copyId: st
   return { ...state, copies: state.copies.map((item) => (item.id === copyId ? { ...item, notes: value } : item)) };
 };
 
-/** Retire un exemplaire de la collection. Refusé s'il est prêté. L'historique des prêts est conservé. */
-export const removeCopy = (state: LocalState, actorId: MemberId, copyId: string) => {
+/**
+ * Retire un exemplaire de la collection. Refusé s'il est prêté. L'exemplaire est
+ * archivé (et non effacé) pour que l'historique des prêts reste lisible.
+ */
+export const removeCopy = (state: LocalState, actorId: MemberId, copyId: string, clock: Clock = defaultClock) => {
   const copy = requireCopy(state, copyId);
   if (copy.ownerId !== actorId) throw new DomainError('Seul le propriétaire peut retirer cet exemplaire.');
   if (activeLoanForCopy(state, copyId)) throw new DomainError('Impossible de retirer un jeu actuellement prêté.');
-  const now = new Date().toISOString();
+  const now = clock.now().toISOString();
   return {
     ...state,
-    copies: state.copies.filter((item) => item.id !== copyId),
+    copies: state.copies.map((item) => (item.id === copyId ? { ...item, status: 'unavailable' as const, archivedAt: now } : item)),
     requests: state.requests.map((request) =>
       request.copyId === copyId && request.status === 'pending' ? { ...request, status: 'cancelled' as const, respondedAt: now } : request),
   };

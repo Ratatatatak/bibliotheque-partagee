@@ -146,7 +146,7 @@ describe('prêts', () => {
     const { state, alice, chloe, aliceCopy } = setup();
     const r = createLoanRequest(state, chloe.id, { copyId: aliceCopy.id, requestedReturnDate: '2026-10-20' }, clock);
     const { state: lent, loan } = acceptLoanRequest(r.state, alice.id, r.request.id, clock);
-    expect(() => removeCopy(lent, alice.id, aliceCopy.id)).toThrow('prêté');
+    expect(() => removeCopy(lent, alice.id, aliceCopy.id, clock)).toThrow('prêté');
     expect(() => setCopyAvailability(lent, alice.id, aliceCopy.id, true)).toThrow('prêté');
     const extended = extendLoan(lent, alice.id, loan.id, '2026-11-01', clock);
     expect(extended.loans[0].expectedReturnDate).toBe('2026-11-01');
@@ -158,5 +158,20 @@ describe('prêts', () => {
     const next = setCopyAvailability(r.state, alice.id, aliceCopy.id, false);
     expect(next.requests[0].status).toBe('refused');
     expect(() => createLoanRequest(next, chloe.id, { copyId: aliceCopy.id, requestedReturnDate: '2026-10-20' }, clock)).toThrow('pas disponible');
+  });
+});
+
+describe('historique', () => {
+  it('retirer un exemplaire après un prêt conserve l’historique avec le nom du jeu', () => {
+    const { state, alice, chloe, aliceCopy } = setup();
+    const r = createLoanRequest(state, chloe.id, { copyId: aliceCopy.id, requestedReturnDate: '2026-10-20' }, clock);
+    const { state: lent, loan } = acceptLoanRequest(r.state, alice.id, r.request.id, clock);
+    const removed = removeCopy(returnLoan(lent, alice.id, loan.id, clock), alice.id, aliceCopy.id, clock);
+    expect(buildGamesWithCopies(removed)[0].copies.map((c) => c.id)).not.toContain(aliceCopy.id);
+    const [history] = buildLoanViews(removed);
+    expect(history.game.name).toBe('Azul');
+    expect(history.status).toBe('returned');
+    // Le jeu peut être de nouveau ajouté plus tard.
+    expect(() => addCopy(removed, alice.id, history.game.id, clock)).not.toThrow();
   });
 });
