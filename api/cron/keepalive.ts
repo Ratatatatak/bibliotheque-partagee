@@ -1,4 +1,4 @@
-import { sendJson, supabaseConfig, type VercelRequest, type VercelResponse } from '../_lib/http';
+import { sendJson, supabaseConfig, type VercelRequest, type VercelResponse } from '../_lib/http.js';
 
 // Tâche planifiée quotidienne (voir « crons » dans vercel.json).
 // Sur l'offre gratuite, Supabase met en pause un projet sans activité pendant

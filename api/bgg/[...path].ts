@@ -1,4 +1,4 @@
-import { isSignedInMember, sendJson, type VercelRequest, type VercelResponse } from '../_lib/http';
+import { isSignedInMember, sendJson, type VercelRequest, type VercelResponse } from '../_lib/http.js';
 
 // Relais vers l'API BoardGameGeek. Le jeton BGG du groupe reste sur le serveur.
 // Seuls les membres connectés peuvent l'utiliser, et seulement pour les deux
