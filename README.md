@@ -89,8 +89,22 @@ Toute variable commençant par `VITE_` est publiée dans le navigateur. **Ne jam
 
 ## Base de données Supabase et migrations
 
-Les migrations sont dans `supabase/migrations/`, à appliquer **dans l'ordre** (éditeur SQL de
-Supabase ou `supabase db push`). Toutes sont non destructives ; la `010` est rejouable sans risque.
+Les migrations sont dans `supabase/migrations/`. Toutes sont non destructives.
+
+**Application automatique** : à chaque arrivée sur `main` d'une nouvelle migration, l'action GitHub
+« Base de données » (`.github/workflows/database.yml`, script `scripts/db/apply-migrations.mjs`)
+l'applique toute seule, dans une transaction (en cas d'erreur, rien n'est modifié). Les migrations
+appliquées sont notées dans `ludotheque_admin.applied_migrations` ; au premier passage, 001 à 011
+(appliquées à la main auparavant) sont seulement notées comme faites. Réglage unique, dans GitHub →
+Settings → Secrets and variables → Actions :
+
+| Secret | Contenu |
+|---|---|
+| `SUPABASE_DB_URL` | adresse **Session pooler** de Supabase (bouton « Connect »), mot de passe de la base inclus |
+| `ADMIN_EMAILS` | facultatif : emails des administrateurs, séparés par des virgules |
+
+L'action peut aussi être lancée à la main (onglet Actions → Base de données → Run workflow), et
+lancer un script ponctuel de `supabase/nettoyage/`. Sans le secret, elle ne fait rien.
 
 | Fichier | Contenu |
 |---|---|
