@@ -35,7 +35,7 @@ Site en production : https://bibliotheque-partagee-tau.vercel.app (hébergement 
 
 Fonctions complémentaires : favoris, filtres, liste d'attente (« me prévenir quand il revient »),
 import de la collection BoardGameGeek d'un membre, parties prévues/jouées, page membres, administration
-des fiches (fusion des doublons, correction, mise à jour depuis BGG), échanges définitifs de propriété
+des fiches (conversion des anciennes fiches, correction, mise à jour depuis BGG), échanges définitifs de propriété
 (mode Supabase uniquement).
 
 ## Lancer le projet
@@ -131,7 +131,8 @@ membres depuis **Authentication → Users → Invite user**.
 
 - Source privilégiée : l'API XML2 de BoardGameGeek, appelée via `/api/bgg` (proxy de développement
   dans `vite.config.ts`, fonction serveur `api/bgg/[...path].ts` en production). Seuls les points
-  d'accès `search` et `thing` sont relayés ; le jeton reste côté serveur.
+  d'accès `search`, `thing` et `collection` sont relayés, pour les membres connectés ; le jeton reste
+  côté serveur.
 - Les valeurs absentes chez BGG restent vides : rien n'est complété par supposition
   (ex. un âge « 0 » chez BGG est affiché « non renseigné »).
 - Chaque fiche conserve l'URL de la source et la date de récupération. Une fiche existante n'est
@@ -142,14 +143,18 @@ membres depuis **Authentication → Users → Invite user**.
 - Image absente ou cassée : un visuel neutre « Image non disponible », jamais une image générée.
 - Les descriptions BGG sont affichées dans leur langue d'origine (souvent l'anglais), sans traduction
   automatique.
-- L'ancien catalogue intégré (`src/data/gameCatalog.ts`) n'a pas de source vérifiable : ses fiches
-  sont marquées « non vérifiées » et ses notes BGG ont été retirées.
+- **Toutes les fiches viennent de BGG.** L'ancien catalogue intégré à l'application a été retiré.
+  Les anciennes fiches encore présentes dans la base se convertissent depuis la page
+  **Administration → Anciennes fiches à convertir** : l'application propose la fiche BGG
+  correspondante (même nom, même type, même année si possible), puis rattache exemplaires, prêts,
+  historique, favoris et parties à la fiche BGG (fonction `merge_games`, migration 012). Les anciennes
+  fiches sans aucun exemplaire peuvent être supprimées en un clic (celles liées à un historique sont
+  conservées).
 
 **Conditions d'utilisation à vérifier par le groupe** : l'usage de l'API BGG est soumis à ses
 conditions (https://boardgamegeek.com/xmlapi/termsofuse) et à l'enregistrement de l'application ;
 les images de boîtes appartiennent à leurs ayants droit. Une mention « Powered by BGG » et un lien
-vers chaque fiche source sont affichés. Les images de l'ancien catalogue proviennent de Wikimedia et
-de Board Game Arena, sans licence vérifiée.
+vers chaque fiche source sont affichés.
 
 ## Tests
 

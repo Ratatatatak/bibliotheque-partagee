@@ -1,6 +1,6 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Search, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,23 +11,42 @@ import { useAuth } from '@/hooks/useAuth';
 import { repository, useAllGames, useIsAdmin, useLibraryAction } from '@/hooks/useLibrary';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components/library/PageState';
 import { GameEditDialog } from '@/components/library/GameEditDialog';
-import { findDuplicateGames } from '@/domain/localState';
 import { formatDate } from '@/domain/dates';
 import { errorMessage } from '@/data/repository';
 import { bggDetailsToGameInput, getBGGGameDetails, searchBGGGames, type BGGSearchResult } from '@/integrations/bgg/client';
-import type { Game, GameInput, GameWithCopies } from '@/domain/types';
+import type { Game, GameInput, GameWithCopies, MemberId } from '@/domain/types';
 
-const originLabel = (game: Game) => (game.origin === 'bgg' ? 'BoardGameGeek' : game.origin === 'manual' ? 'Corrigée par le groupe' : 'Ancien catalogue (non vérifiée)');
+const simplify = (name: string) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-/** Associe une fiche sans source à la fiche BoardGameGeek correspondante. */
-const LinkToBggDialog = ({ game, onClose }: { game: Game | null; onClose: () => void }) => {
+/**
+ * Remplace une ancienne fiche (sans source) par la fiche BoardGameGeek du même jeu :
+ * la fiche BGG est créée si besoin, puis l'ancienne y est rattachée. Les exemplaires,
+ * prêts, historique, favoris et parties suivent ; rien n'est perdu.
+ */
+const convertToBgg = async (actorId: MemberId, game: Game, bggId: string) => {
+  const details = await getBGGGameDetails(bggId);
+  if (!details) throw new Error('Fiche introuvable sur BoardGameGeek.');
+  await repository.createGame(actorId, bggDetailsToGameInput(details));
+  if (game.id !== details.id) await repository.mergeGames(actorId, game.id, details.id);
+};
+
+/** Cherche la fiche BGG au nom identique (jeu de base de préférence, même année si connue). */
+const proposeBggMatch = async (game: Game): Promise<BGGSearchResult | null> => {
+  const results = await searchBGGGames(game.name);
+  const same = results.filter((r) => simplify(r.name) === simplify(game.name) && (r.type === 'boardgameexpansion') === game.isExpansion);
+  return same.find((r) => game.year && r.year === String(game.year)) ?? same[0] ?? null;
+};
+
+/** Choix manuel de la fiche BoardGameGeek correspondant à une ancienne fiche. */
+const ChooseBggDialog = ({ game, onClose }: { game: Game | null; onClose: () => void }) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<BGGSearchResult[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const link = useLibraryAction((a, input: GameInput) => repository.updateGameDetails(a, input.id!, input), {
-    success: 'Fiche reliée à BoardGameGeek. Si une autre fiche existe pour ce jeu, elle apparaît dans les doublons.',
-  });
+
+  useEffect(() => { setTerm(game?.name ?? ''); setResults([]); setError(null); }, [game]);
 
   const search = async (event: FormEvent) => {
     event.preventDefault();
@@ -35,12 +54,13 @@ const LinkToBggDialog = ({ game, onClose }: { game: Game | null; onClose: () => 
     try { setResults(await searchBGGGames(term)); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
   const choose = async (result: BGGSearchResult) => {
-    if (!game) return;
+    if (!game || !user) return;
     setBusy(true); setError(null);
     try {
-      const details = await getBGGGameDetails(result.id);
-      if (!details) throw new Error('Fiche BoardGameGeek introuvable.');
-      link.mutate({ ...bggDetailsToGameInput(details), id: game.id }, { onSuccess: onClose });
+      await convertToBgg(user.id, game, result.id);
+      toast.success(`« ${game.name} » utilise maintenant la fiche BoardGameGeek.`);
+      await queryClient.invalidateQueries({ queryKey: ['library'] });
+      onClose();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -49,11 +69,11 @@ const LinkToBggDialog = ({ game, onClose }: { game: Game | null; onClose: () => 
   };
 
   return (
-    <Modal open={Boolean(game)} onOpenChange={(open) => { if (!open) { setResults([]); onClose(); } }} eyebrow="Relier à BoardGameGeek" title={game?.name ?? ''}
-      description="Les informations de la fiche seront remplacées par celles de BoardGameGeek, avec la source et la date. Les exemplaires et l’historique ne changent pas.">
+    <Modal open={Boolean(game)} onOpenChange={(open) => { if (!open) onClose(); }} eyebrow="Choisir la fiche BoardGameGeek" title={game?.name ?? ''}
+      description="Les exemplaires, prêts et l’historique de ce jeu passeront sur la fiche BoardGameGeek choisie.">
       <form onSubmit={search} className="flex gap-3">
         <label htmlFor="link-search" className="sr-only">Nom du jeu sur BoardGameGeek</label>
-        <Input id="link-search" value={term || game?.name || ''} onChange={(e) => setTerm(e.target.value)} />
+        <Input id="link-search" value={term} onChange={(e) => setTerm(e.target.value)} />
         <Button type="submit" variant="outline" disabled={busy}><Search className="h-4 w-4" aria-hidden="true" />Chercher</Button>
       </form>
       {error && <p className="mt-3 text-sm font-semibold text-destructive" role="alert">{error}</p>}
@@ -69,6 +89,90 @@ const LinkToBggDialog = ({ game, onClose }: { game: Game | null; onClose: () => 
         ))}
       </ul>
     </Modal>
+  );
+};
+
+type Proposal = { status: 'searching' } | { status: 'found'; match: BGGSearchResult } | { status: 'none' } | { status: 'error'; message: string };
+
+/** Anciennes fiches encore utilisées : proposition de fiche BGG et conversion. */
+const LegacyConversion = ({ legacy, onChoose }: { legacy: GameWithCopies[]; onChoose: (game: Game) => void }) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [proposals, setProposals] = useState<Record<string, Proposal>>({});
+  const [converting, setConverting] = useState<string | null>(null);
+  const ids = legacy.map((g) => g.id).join('|');
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      for (const game of legacy) {
+        if (!active) return;
+        setProposals((p) => (p[game.id] ? p : { ...p, [game.id]: { status: 'searching' } }));
+        try {
+          const match = await proposeBggMatch(game);
+          if (active) setProposals((p) => ({ ...p, [game.id]: match ? { status: 'found', match } : { status: 'none' } }));
+        } catch (e) {
+          if (active) setProposals((p) => ({ ...p, [game.id]: { status: 'error', message: errorMessage(e) } }));
+        }
+        await new Promise((resolve) => setTimeout(resolve, 600)); // on ménage l'API BGG
+      }
+    })();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids]);
+
+  const convert = async (games: Game[]) => {
+    if (!user) return;
+    let ok = 0;
+    for (const game of games) {
+      const proposal = proposals[game.id];
+      if (proposal?.status !== 'found') continue;
+      setConverting(game.id);
+      try {
+        await convertToBgg(user.id, game, proposal.match.id);
+        ok += 1;
+      } catch (e) {
+        toast.error(`${game.name} : ${errorMessage(e)}`);
+      }
+    }
+    setConverting(null);
+    await queryClient.invalidateQueries({ queryKey: ['library'] });
+    if (ok) toast.success(`${ok} fiche${ok > 1 ? 's converties' : ' convertie'} en fiche${ok > 1 ? 's' : ''} BoardGameGeek.`);
+  };
+
+  const ready = legacy.filter((g) => proposals[g.id]?.status === 'found');
+
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <Button disabled={ready.length === 0 || converting !== null} onClick={() => void convert(ready)}>
+          {converting ? 'Conversion…' : `Tout convertir (${ready.length})`}
+        </Button>
+        <span className="text-sm text-muted-foreground">Vérifiez d’abord les propositions : année et type de jeu.</span>
+      </div>
+      <ul className="space-y-3">
+        {legacy.map((game) => {
+          const p = proposals[game.id];
+          return (
+            <li key={game.id} className="surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-brun-cafe-doux">
+                <p><strong>{game.name}</strong> — {game.copies.length} exemplaire{game.copies.length > 1 ? 's' : ''}</p>
+                <p className="text-muted-foreground">
+                  {!p || p.status === 'searching' ? 'Recherche sur BoardGameGeek…'
+                    : p.status === 'found' ? <>Fiche proposée : <strong className="text-brun-cafe-doux">{p.match.name}</strong> ({p.match.year ?? 'année inconnue'}, {p.match.type === 'boardgameexpansion' ? 'extension' : 'jeu de base'}) · <a className="text-bleu-canard-profond underline" href={`https://boardgamegeek.com/boardgame/${p.match.id}`} target="_blank" rel="noreferrer noopener">voir sur BGG</a></>
+                      : p.status === 'none' ? 'Aucune fiche au nom identique : choisissez-la vous-même.'
+                        : `Recherche impossible : ${p.message}`}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {p?.status === 'found' && <Button size="sm" disabled={converting !== null} onClick={() => void convert([game])}>{converting === game.id ? 'Conversion…' : 'Convertir'}</Button>}
+                <Button size="sm" variant="outline" disabled={converting !== null} onClick={() => onChoose(game)}>Choisir une autre fiche</Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 };
 
@@ -100,21 +204,20 @@ const Admin = () => {
   const admin = useIsAdmin();
   const games = useAllGames(admin.data === true);
   const [editing, setEditing] = useState<Game | null>(null);
-  const [linking, setLinking] = useState<Game | null>(null);
-  const [merging, setMerging] = useState<{ source: GameWithCopies; target: GameWithCopies } | null>(null);
-  const [deleting, setDeleting] = useState<GameWithCopies | null>(null);
+  const [choosing, setChoosing] = useState<Game | null>(null);
   const [filter, setFilter] = useState('');
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const merge = useLibraryAction((a, args: { sourceId: string; targetId: string }) => repository.mergeGames(a, args.sourceId, args.targetId), { success: 'Fiches fusionnées.' });
-  const remove = useLibraryAction((a, gameId: string) => repository.deleteGame(a, gameId), { success: 'Fiche supprimée.' });
   const update = useLibraryAction((a, input: GameInput) => repository.updateGameDetails(a, input.id!, input), { success: 'Fiche mise à jour depuis BoardGameGeek.' });
 
   const list = games.data ?? [];
-  const duplicates = useMemo(() => findDuplicateGames(list).map(([s, t]) => ({
-    source: list.find((g) => g.id === s.id)!, target: list.find((g) => g.id === t.id)!,
-  })), [list]);
-  const shown = list.filter((g) => !filter || g.name.toLowerCase().includes(filter.toLowerCase()));
+  const bggGames = useMemo(() => list.filter((g) => g.bggId && g.id === g.bggId), [list]);
+  const legacyUsed = useMemo(() => list.filter((g) => !(g.bggId && g.id === g.bggId) && g.copies.length > 0), [list]);
+  const legacyUnused = useMemo(() => list.filter((g) => !(g.bggId && g.id === g.bggId) && g.copies.length === 0), [list]);
+  const shown = bggGames.filter((g) => !filter || g.name.toLowerCase().includes(filter.toLowerCase()));
 
   const refreshFromBgg = async (game: GameWithCopies) => {
     if (!game.bggId) return;
@@ -130,6 +233,20 @@ const Admin = () => {
     }
   };
 
+  const deleteUnused = async () => {
+    if (!user) return;
+    setCleaning(true);
+    let ok = 0;
+    const kept: string[] = [];
+    for (const game of legacyUnused) {
+      try { await repository.deleteGame(user.id, game.id); ok += 1; } catch { kept.push(game.name); }
+    }
+    setCleaning(false);
+    await queryClient.invalidateQueries({ queryKey: ['library'] });
+    if (ok) toast.success(`${ok} ancienne${ok > 1 ? 's fiches supprimées' : ' fiche supprimée'}.`);
+    if (kept.length) toast.info(`Conservées car liées à un historique ou une partie : ${kept.join(', ')}.`);
+  };
+
   if (admin.isLoading) return <LoadingState />;
   if (!admin.data) {
     return (
@@ -143,60 +260,54 @@ const Admin = () => {
 
   return (
     <div className="page-container">
-      <PageHeader eyebrow="Administration" title="Fiches de jeux" lead="Fusionner les doublons, corriger une fiche ou la mettre à jour depuis BoardGameGeek." />
+      <PageHeader eyebrow="Administration" title="Fiches de jeux" lead="Toutes les fiches viennent de BoardGameGeek. Ici, vous convertissez les anciennes fiches et gardez les autres à jour." />
 
       {games.isLoading ? <LoadingState /> : games.isError ? <ErrorState error={games.error} onRetry={() => void games.refetch()} /> : (
         <>
-          <section aria-labelledby="dups" className="mb-10">
-            <h2 id="dups" className="mb-4 font-display text-xl font-bold text-brun-cafe-doux">Doublons probables</h2>
-            {duplicates.length === 0 ? <p className="rounded-lg border border-dashed border-gris-pierre-chaude p-6 text-sm text-muted-foreground">Aucun doublon détecté.</p> : (
-              <ul className="space-y-3">
-                {duplicates.map(({ source, target }) => (
-                  <li key={`${source.id}-${target.id}`} className="surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm text-brun-cafe-doux">
-                      <p>Fiche 1 : <strong>{source.name}</strong> — {originLabel(source)}, {source.copies.length} exemplaire{source.copies.length > 1 ? 's' : ''}</p>
-                      <p>Fiche 2 : <strong>{target.name}</strong> — {originLabel(target)}, {target.copies.length} exemplaire{target.copies.length > 1 ? 's' : ''}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => setMerging({ source, target })}>Garder la fiche 2{target.origin === 'bgg' ? ' (BGG)' : ''}</Button>
-                      <Button size="sm" variant="outline" onClick={() => setMerging({ source: target, target: source })}>Garder la fiche 1</Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+          <section aria-labelledby="legacy" className="mb-10">
+            <h2 id="legacy" className="mb-2 font-display text-xl font-bold text-brun-cafe-doux">Anciennes fiches à convertir</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Ces jeux ont été ajoutés avant BoardGameGeek. La conversion remplace leur fiche par celle de BGG ; exemplaires, prêts et historique sont conservés.
+            </p>
+            {legacyUsed.length === 0
+              ? <p className="rounded-lg border border-dashed border-gris-pierre-chaude p-6 text-sm text-muted-foreground">Aucune ancienne fiche utilisée : tout est déjà sur BoardGameGeek.</p>
+              : <LegacyConversion legacy={legacyUsed} onChoose={setChoosing} />}
+            {legacyUnused.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <span>{legacyUnused.length} ancienne{legacyUnused.length > 1 ? 's fiches ne servent' : ' fiche ne sert'} plus (aucun exemplaire).</span>
+                <Button size="sm" variant="outline" disabled={cleaning} onClick={() => void deleteUnused()}>{cleaning ? 'Suppression…' : 'Les supprimer'}</Button>
+              </div>
             )}
           </section>
 
           <section aria-labelledby="all" className="mb-10">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <h2 id="all" className="font-display text-xl font-bold text-brun-cafe-doux">Toutes les fiches ({list.length})</h2>
+              <h2 id="all" className="font-display text-xl font-bold text-brun-cafe-doux">Fiches BoardGameGeek ({bggGames.length})</h2>
               <div className="sm:w-72"><label htmlFor="admin-filter" className="sr-only">Filtrer</label><Input id="admin-filter" placeholder="Filtrer par nom…" value={filter} onChange={(e) => setFilter(e.target.value)} /></div>
             </div>
-            <div className="surface overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm text-brun-cafe-doux">
-                <thead className="border-b border-gris-pierre-chaude bg-gris-perle/60">
-                  <tr><th scope="col" className="p-4">Jeu</th><th scope="col" className="p-4">Origine des informations</th><th scope="col" className="p-4">Exemplaires</th><th scope="col" className="p-4">Actions</th></tr>
-                </thead>
-                <tbody>
-                  {shown.map((game) => (
-                    <tr key={game.id} className="border-b border-gris-pierre-chaude last:border-0 align-top">
-                      <td className="p-4 font-semibold"><Link to={`/game/${encodeURIComponent(game.id)}`} className="hover:underline">{game.name}</Link>{game.isExpansion && <span className="ml-2 text-xs text-bleu-canard-profond">extension</span>}</td>
-                      <td className="p-4">{originLabel(game)}</td>
-                      <td className="p-4">{game.copies.length}</td>
-                      <td className="p-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setEditing(game)}>Corriger</Button>
-                          {game.bggId
-                            ? <Button size="sm" variant="ghost" disabled={refreshing === game.id} onClick={() => void refreshFromBgg(game)}>{refreshing === game.id ? 'Mise à jour…' : 'Mettre à jour depuis BGG'}</Button>
-                            : <Button size="sm" variant="ghost" onClick={() => setLinking(game)}>Relier à BGG</Button>}
-                          {game.copies.length === 0 && <Button size="sm" variant="ghost" onClick={() => setDeleting(game)}>Supprimer</Button>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {bggGames.length === 0 ? <p className="rounded-lg border border-dashed border-gris-pierre-chaude p-6 text-sm text-muted-foreground">Aucune fiche pour l’instant.</p> : (
+              <div className="surface overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm text-brun-cafe-doux">
+                  <thead className="border-b border-gris-pierre-chaude bg-gris-perle/60">
+                    <tr><th scope="col" className="p-4">Jeu</th><th scope="col" className="p-4">Exemplaires</th><th scope="col" className="p-4">Actions</th></tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((game) => (
+                      <tr key={game.id} className="border-b border-gris-pierre-chaude last:border-0 align-top">
+                        <td className="p-4 font-semibold"><Link to={`/game/${encodeURIComponent(game.id)}`} className="hover:underline">{game.name}</Link>{game.isExpansion && <span className="ml-2 text-xs text-bleu-canard-profond">extension</span>}{game.origin === 'manual' && <span className="ml-2 text-xs font-normal text-muted-foreground">corrigée à la main</span>}</td>
+                        <td className="p-4">{game.copies.length}</td>
+                        <td className="p-4">
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="ghost" disabled={refreshing === game.id} onClick={() => void refreshFromBgg(game)}>{refreshing === game.id ? 'Mise à jour…' : 'Mettre à jour depuis BGG'}</Button>
+                            <Button size="sm" variant="outline" onClick={() => setEditing(game)}>Corriger</Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         </>
       )}
@@ -209,20 +320,7 @@ const Admin = () => {
       )}
 
       <GameEditDialog game={editing} onClose={() => setEditing(null)} />
-      <LinkToBggDialog game={linking} onClose={() => setLinking(null)} />
-      <Modal open={Boolean(merging)} onOpenChange={(open) => { if (!open) setMerging(null); }} title="Fusionner ces deux fiches ?"
-        description={merging ? <>« {merging.source.name} » ({originLabel(merging.source)}) sera fusionnée dans « {merging.target.name} » ({originLabel(merging.target)}). Ses exemplaires, favoris, parties et inscriptions d’attente passent sur la fiche conservée. Un membre qui possède le jeu sur les deux fiches garde un seul exemplaire.</> : null}>
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={() => setMerging(null)}>Annuler</Button>
-          <Button disabled={merge.isLoading} onClick={() => merging && merge.mutate({ sourceId: merging.source.id, targetId: merging.target.id }, { onSuccess: () => setMerging(null) })}>Fusionner</Button>
-        </div>
-      </Modal>
-      <Modal open={Boolean(deleting)} onOpenChange={(open) => { if (!open) setDeleting(null); }} title={`Supprimer « ${deleting?.name ?? ''} » ?`} description="Cette fiche n’a aucun exemplaire. Elle sera supprimée définitivement.">
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={() => setDeleting(null)}>Garder</Button>
-          <Button variant="destructive" disabled={remove.isLoading} onClick={() => deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}>Supprimer</Button>
-        </div>
-      </Modal>
+      <ChooseBggDialog game={choosing} onClose={() => setChoosing(null)} />
     </div>
   );
 };

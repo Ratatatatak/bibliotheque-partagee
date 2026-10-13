@@ -35,6 +35,13 @@ export const localRepository: LibraryRepository = {
       .filter((game) => game.copies.length > 0);
   },
 
+  async createGame(_actorId, input: GameInput) {
+    mutate((state) => {
+      const id = input.id ?? input.bggId ?? undefined;
+      return id && state.games.some((game) => game.id === id) ? state : rules.upsertGame(state, input).state;
+    });
+  },
+
   async addGameToCollection(actorId, input: GameInput) {
     mutate((state) => {
       const id = input.id ?? input.bggId ?? undefined;

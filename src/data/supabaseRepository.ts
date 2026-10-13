@@ -201,6 +201,37 @@ const gameToRow = (input: GameInput, id: string) => ({
 /** Colonnes présentes avant la migration 010 (pour rester compatible avec une base non migrée). */
 const LEGACY_GAME_COLUMNS = ['id', 'name', 'description', 'image_url', 'min_players', 'max_players', 'duration', 'min_age', 'category', 'publisher', 'designers', 'illustrators', 'published_year', 'mechanics', 'average_rating', 'ratings_count'];
 
+/** Crée la fiche si elle n'existe pas encore (une fiche existante n'est JAMAIS écrasée). Renvoie son identifiant. */
+async function ensureGame(input: GameInput): Promise<string> {
+    const client = requireSupabase();
+    const id = input.id ?? input.bggId;
+    if (!id) throw new DomainError('Identifiant de jeu manquant.');
+    // 1. Créer la fiche si elle n'existe pas encore. Une fiche existante n'est JAMAIS écrasée
+    //    (un autre membre peut déjà la posséder).
+    const { data: existing, error: existingError } = await client.from('games').select('id').eq('id', id).maybeSingle();
+    if (existingError) fail(existingError, 'Vérification du catalogue impossible');
+    if (!existing) {
+      let insert = await client.from('games').insert(gameToRow(input, id));
+      if (insert.error && isMissingSchema(insert.error)) {
+        if (input.minPlayers === null || input.maxPlayers === null || input.minAge === null) {
+          throw new DomainError('Cette fiche a des informations manquantes que l’ancienne base ne sait pas enregistrer. Appliquez la migration 010_loan_integrity_and_privacy.sql.');
+        }
+        const full = gameToRow(input, id) as Record<string, unknown>;
+        insert = await client.from('games').insert(Object.fromEntries(Object.entries(full).filter(([key]) => LEGACY_GAME_COLUMNS.includes(key))));
+      }
+      // 23505 = un autre membre vient de créer la même fiche : ce n'est pas une erreur.
+      if (insert.error && insert.error.code !== '23505') fail(insert.error, 'Création de la fiche impossible');
+      if (!insert.error && input.sources.length) {
+        const { error: sourceError } = await client.from('game_sources').insert(input.sources.map((source) => ({
+          game_id: id, source_name: source.name, source_url: source.url, source_type: 'external',
+          retrieved_at: source.retrievedAt || new Date().toISOString(),
+        })));
+        if (sourceError) console.warn('Sources non enregistrées :', sourceError.message);
+      }
+    }
+    return id;
+}
+
 export const supabaseRepository: LibraryRepository = {
   mode: 'supabase',
   supportsExchanges: true,
@@ -236,33 +267,13 @@ export const supabaseRepository: LibraryRepository = {
       .filter((game) => game.copies.length > 0);
   },
 
+  async createGame(_actorId, input) {
+    await ensureGame(input);
+  },
+
   async addGameToCollection(actorId, input) {
     const client = requireSupabase();
-    const id = input.id ?? input.bggId;
-    if (!id) throw new DomainError('Identifiant de jeu manquant.');
-    // 1. Créer la fiche si elle n'existe pas encore. Une fiche existante n'est JAMAIS écrasée
-    //    (un autre membre peut déjà la posséder).
-    const { data: existing, error: existingError } = await client.from('games').select('id').eq('id', id).maybeSingle();
-    if (existingError) fail(existingError, 'Vérification du catalogue impossible');
-    if (!existing) {
-      let insert = await client.from('games').insert(gameToRow(input, id));
-      if (insert.error && isMissingSchema(insert.error)) {
-        if (input.minPlayers === null || input.maxPlayers === null || input.minAge === null) {
-          throw new DomainError('Cette fiche a des informations manquantes que l’ancienne base ne sait pas enregistrer. Appliquez la migration 010_loan_integrity_and_privacy.sql.');
-        }
-        const full = gameToRow(input, id) as Record<string, unknown>;
-        insert = await client.from('games').insert(Object.fromEntries(Object.entries(full).filter(([key]) => LEGACY_GAME_COLUMNS.includes(key))));
-      }
-      // 23505 = un autre membre vient de créer la même fiche : ce n'est pas une erreur.
-      if (insert.error && insert.error.code !== '23505') fail(insert.error, 'Création de la fiche impossible');
-      if (!insert.error && input.sources.length) {
-        const { error: sourceError } = await client.from('game_sources').insert(input.sources.map((source) => ({
-          game_id: id, source_name: source.name, source_url: source.url, source_type: 'external',
-          retrieved_at: source.retrievedAt || new Date().toISOString(),
-        })));
-        if (sourceError) console.warn('Sources non enregistrées :', sourceError.message);
-      }
-    }
+    const id = await ensureGame(input);
     // 2. Ajouter l'exemplaire.
     const { error } = await client.from('game_copies').insert({ game_id: id, owner_id: actorId, status: 'available' });
     if (error?.code === '23505') throw new DomainError('Ce jeu est déjà dans votre collection.');
